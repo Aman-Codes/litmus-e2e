@@ -2,7 +2,7 @@
   "name": "e2e-dashboard",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://aman-codes.github.io/litmus-e2e/dashboard/build",
+  "homepage": "https://aman-codes.github.io/litmus-e2e",
   "dependencies": {
     "@material-ui/core": "4.11.4",
     "@material-ui/data-grid": "^4.0.0-alpha.37",

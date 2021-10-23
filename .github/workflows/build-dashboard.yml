@@ -4,9 +4,9 @@ name: build-dashboard
 on:
   push:
     branches:
-      - gh-pages
+      - e2e-dashboard
     paths-ignore:
-      - /dashboard/build/*
+      - /dist/*
 
 jobs:
   build:
@@ -20,12 +20,14 @@ jobs:
 
       - name: Install dependencies and build
         run: |
-          cd dashboard
+          cd source
           yarn install --frozen-lockfile
           yarn build
+          cp -a ./build/. ../dist/
+          rm -rf ./build
 
       - name: Release to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@4.1.4
         with:
           branch: gh-pages
-          folder: .
+          folder: dist
