@@ -35,5 +35,19 @@ module.exports = (on, config) => {
         })
       })
     },
+    setProjectID: (projectID) => {
+      global.projectID = projectID;
+      return null;
+    },
+    getProjectID: () => {
+      return global.projectID;
+    },
+    setHubID: (hubID) => {
+      global.hubID = hubID;
+      return null;
+    },
+    getHubID: () => {
+      return global.hubID;
+    },
   })
 }
