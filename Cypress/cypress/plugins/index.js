@@ -34,20 +34,16 @@ module.exports = (on, config) => {
           resolve(null)
         })
       })
-    },
-    setProjectID: (projectID) => {
-      global.projectID = projectID;
+    },    
+    getSecuritySetupVariable: () => {
+      if(global.setupVariable) {
+        return global.setupVariable;
+      }
       return null;
     },
-    getProjectID: () => {
-      return global.projectID;
-    },
-    setHubID: (hubID) => {
-      global.hubID = hubID;
+    setSetupVariable: (setupVariable) => {
+      global.setupVariable = setupVariable;
       return null;
-    },
-    getHubID: () => {
-      return global.hubID;
     },
   })
 }

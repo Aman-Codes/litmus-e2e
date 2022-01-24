@@ -1,377 +1,221 @@
 /// <reference types="Cypress" />
 
 import * as user from "../../../fixtures/Users.json";
-
-const checkErrorMessage = (res, message) => {
-  expect(res.status).to.not.eq(200);
-  expect(res.body).to.have.nested.property("errors[0].message");
-  expect(res.body.errors[0].message).to.eq(message);
-};
+import { addMyHub, updateMyHub, deleteMyHub } from "../../../fixtures/graphql/mutation";
+import { getHubStatus } from "../../../fixtures/graphql/queries";
+import * as myhubInput from "../../../fixtures/myhubInput.json";
 
 describe("Testing myHub api", () => {
+  let project1Id, project2Id, hubId;
   before(
-		"Clearing the cookies, login as admin and fetch project id",
+		"Create user1 with editor role in project1 and user2 with viewer role in project2",
 		() => {
-			cy.requestLogin(user.AdminName, user.AdminPassword);
-      cy.getCookie("litmus-cc-token").then((token) => {
-        cy.request({
-          method: "GET",
-          url: Cypress.env("authURL") + "/list_projects",
-          headers: {
-            authorization: `Bearer ${token.value}`,
-          },
-        })
-          .its("body")
-          .then((res) => {
-            cy.task('setProjectID', res.data[0].ID);
-          });
+      cy.task('getSecuritySetupVariable').then((setupVariable) => {
+        if(!setupVariable) {
+          cy.securityCheckSetup().then((createdSetupVariable) => {
+            project1Id = createdSetupVariable.project1Id;
+            project2Id = createdSetupVariable.project2Id;          
+            cy.task('setSetupVariable', createdSetupVariable);
+          })
+        } else {
+          project1Id = setupVariable.project1Id;
+          project2Id = setupVariable.project2Id;
+        }
       });
 		}
 	);
 
-  it("Adding a new MyHub with missing HubName", () => {
-    cy.task('getProjectID').then((project_id) => {
-      cy.request({
-        method: "POST",
-        url: Cypress.env("apiURL") + '/query',
-        body: { 
-          "operationName": "addMyHub",
-          "variables": {
-            "myhubInput": {
-              "RepoURL": "https://github.com/litmuschaos/chaos-charts",
-              "RepoBranch": "master",
-              "IsPrivate": false,
-              "AuthType": "basic",
-              "UserName": "user",
-              "Password": "user",
-            },
-            "projectID": project_id,
-          },
-          "query": `mutation addMyHub($myhubInput: CreateMyHub!, $projectID: String!){
-            addMyHub(myhubInput: $myhubInput, projectID: $projectID){
-              id
-            }
-          }`
+  it("Adding a new MyHub to a project with no access [ Should not be possible ]", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("apiURL") + '/query',
+      body: { 
+        "operationName": "addMyHub",
+        "variables": {
+          myhubInput: myhubInput.default,
+          "projectID": project1Id,
         },
-        failOnStatusCode: false
-      }).then((res) => {
-        checkErrorMessage(res, "must be defined");
-      });
-    });		
+        "query": addMyHub
+      },
+      failOnStatusCode: false
+    }).then((res) => {
+      cy.validateErrorMessage(res, "permission_denied");
+    });
   });
 
-  it("Adding a new MyHub with missing RepoURL", () => {
-    cy.task('getProjectID').then((project_id) => {
-      cy.request({
-        method: "POST",
-        url: Cypress.env("apiURL") + '/query',
-        body: { 
-          "operationName": "addMyHub",
-          "variables": {
-            "myhubInput": {
-              "HubName": "my-chaos-hub",
-              "RepoBranch": "master",
-              "IsPrivate": false,
-              "AuthType": "basic",
-              "UserName": "user",
-              "Password": "user",
-            },
-            "projectID": project_id,
-          },
-          "query": `mutation addMyHub($myhubInput: CreateMyHub!, $projectID: String!){
-            addMyHub(myhubInput: $myhubInput, projectID: $projectID){
-              id
-            }
-          }`
+  it("Fetching status of the MyHub of a project with no access [ Should not be possible ]", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("apiURL") + '/query',
+      body: { 
+        "operationName": "getHubStatus",
+        "variables": {
+          "projectID": project1Id,
         },
-        failOnStatusCode: false
-      }).then((res) => {
-        checkErrorMessage(res, "must be defined");
-      });
-    });		
+        "query": getHubStatus
+      },
+      failOnStatusCode: false
+    }).then((res) => {
+      cy.validateErrorMessage(res, "permission_denied");
+    });
   });
 
-  it("Adding a new MyHub with missing RepoBranch", () => {
-    cy.task('getProjectID').then((project_id) => {
-      cy.request({
-        method: "POST",
-        url: Cypress.env("apiURL") + '/query',
-        body: { 
-          "operationName": "addMyHub",
-          "variables": {
-            "myhubInput": {
-              "HubName": "my-chaos-hub",
-              "RepoURL": "https://github.com/litmuschaos/chaos-charts",
-              "IsPrivate": false,
-              "AuthType": "basic",
-              "UserName": "user",
-              "Password": "user",
-            },
-            "projectID": project_id,
-          },
-          "query": `mutation addMyHub($myhubInput: CreateMyHub!, $projectID: String!){
-            addMyHub(myhubInput: $myhubInput, projectID: $projectID){
-              id
-            }
-          }`
+  it("Adding a new MyHub to a project with viewer access [ Should not be possible ]", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("apiURL") + '/query',
+      body: { 
+        "operationName": "addMyHub",
+        "variables": {
+          myhubInput: myhubInput.default,
+          "projectID": project2Id,
         },
-        failOnStatusCode: false
-      }).then((res) => {
-        checkErrorMessage(res, "must be defined");
-      });
-    });		
+        "query": addMyHub
+      },
+      failOnStatusCode: false
+    }).then((res) => {
+      cy.validateErrorMessage(res, "permission_denied");
+    });
   });
 
-  it("Adding a new MyHub with missing private flag", () => {
-    cy.task('getProjectID').then((project_id) => {
-      cy.request({
-        method: "POST",
-        url: Cypress.env("apiURL") + '/query',
-        body: { 
-          "operationName": "addMyHub",
-          "variables": {
-            "myhubInput": {
-              "HubName": "my-chaos-hub",
-              "RepoURL": "https://github.com/litmuschaos/chaos-charts",
-              "RepoBranch": "master",
-              "AuthType": "basic",
-              "UserName": "user",
-              "Password": "user",
-            },
-            "projectID": project_id,
-          },
-          "query": `mutation addMyHub($myhubInput: CreateMyHub!, $projectID: String!){
-            addMyHub(myhubInput: $myhubInput, projectID: $projectID){
-              id
-            }
-          }`
+  it("Fetching status of the MyHub of a project with viewer access", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("apiURL") + '/query',
+      body: { 
+        "operationName": "getHubStatus",
+        "variables": {
+          "projectID": project2Id,
         },
-        failOnStatusCode: false
-      }).then((res) => {
-        checkErrorMessage(res, "must be defined");
-      });
-    });		
+        "query": getHubStatus
+      },
+    }).then((res) => {
+      expect(res.status).to.eq(200);
+      expect(res.body).to.have.nested.property("data.getHubStatus[0].id");
+    });
   });
 
-  it("Adding a new MyHub with missing auth", () => {
-    cy.task('getProjectID').then((project_id) => {
-      cy.request({
-        method: "POST",
-        url: Cypress.env("apiURL") + '/query',
-        body: { 
-          "operationName": "addMyHub",
-          "variables": {
-            "myhubInput": {
-              "HubName": "my-chaos-hub",
-              "RepoURL": "https://github.com/litmuschaos/chaos-charts",
-              "RepoBranch": "master",
-              "IsPrivate": false,
-            },
-            "projectID": project_id,
-          },
-          "query": `mutation addMyHub($myhubInput: CreateMyHub!, $projectID: String!){
-            addMyHub(myhubInput: $myhubInput, projectID: $projectID){
-              id
-            }
-          }`
+  it("Adding a new MyHub to a project with editor access", () => {
+    cy.logout();
+    cy.requestLogin(user.user1.username, user.user1.password);
+    cy.request({
+      method: "POST",
+      url: Cypress.env("apiURL") + '/query',
+      body: { 
+        "operationName": "addMyHub",
+        "variables": {
+          myhubInput: myhubInput.default,
+          "projectID": project1Id,
         },
-        failOnStatusCode: false
-      }).then((res) => {
-        checkErrorMessage(res, "must be defined");
-      });
-    });		
+        "query": addMyHub
+      },
+    }).then((res) => {
+      expect(res.status).to.eq(200);
+      expect(res.body).to.have.nested.property("data.addMyHub.id");
+      hubId = res.body.data.addMyHub.id;
+    });
   });
 
-
-  it("Adding a new MyHub with correct details", () => {
-    cy.task('getProjectID').then((project_id) => {
-      cy.request({
-        method: "POST",
-        url: Cypress.env("apiURL") + '/query',
-        body: { 
-          "operationName": "addMyHub",
-          "variables": {
-            "myhubInput": {
-              "HubName": "my-chaos-hub",
-              "RepoURL": "https://github.com/litmuschaos/chaos-charts",
-              "RepoBranch": "master",
-              "IsPrivate": false,
-              "AuthType": "basic",
-              "UserName": "user",
-              "Password": "user",
-            },
-            "projectID": project_id,
-          },
-          "query": `mutation addMyHub($myhubInput: CreateMyHub!, $projectID: String!){
-            addMyHub(myhubInput: $myhubInput, projectID: $projectID){
-              id
-              RepoURL
-              RepoBranch
-              ProjectID
-              HubName
-              IsPrivate
-              AuthType
-              Token
-              UserName
-              Password
-              SSHPrivateKey
-              IsRemoved
-              CreatedAt
-              UpdatedAt
-              LastSyncedAt
-            }
-          }`
+  it("Fetching status of the MyHub of a project with editor access", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("apiURL") + '/query',
+      body: { 
+        "operationName": "getHubStatus",
+        "variables": {
+          "projectID": project1Id,
         },
-      }).then((res) => {
-        expect(res.status).to.eq(200);
-        expect(res.body).to.have.nested.property("data.addMyHub");
-      });
-    });		
+        "query": getHubStatus
+      },
+    }).then((res) => {
+      expect(res.status).to.eq(200);
+      expect(res.body).to.have.nested.property("data.getHubStatus[0].id");
+    });
   });
 
-  it("Fetching hub status", () => {
-    cy.task('getProjectID').then((project_id) => {
-      cy.request({
-        method: "POST",
-        url: Cypress.env("apiURL") + '/query',
-        body: { 
-          "operationName": "getHubStatus",
-          "variables": {
-            "projectID": project_id,
+  it("Updating the hub configuration of a project with editor access", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("apiURL") + '/query',
+      body: { 
+        "operationName": "updateMyHub",
+        "variables": {
+          myhubInput: {
+            ...myhubInput.default,
+            id: hubId,
+            HubName: "my-chaos-hub-1"
           },
-          "query": `query getHubStatus($projectID: String!){
-            getHubStatus(projectID: $projectID){
-              id
-              RepoURL
-              RepoBranch
-              IsAvailable
-              TotalExp
-              HubName
-              IsPrivate
-              AuthType
-              Token
-              UserName
-              Password
-              IsRemoved
-              SSHPrivateKey
-              SSHPublicKey
-              LastSyncedAt
-            }
-          }`
+          "projectID": project1Id,
         },
-      }).then((res) => {
-        expect(res.status).to.eq(200);
-        expect(res.body).to.have.nested.property("data.getHubStatus");
-        cy.task('setHubID', res.body.data.getHubStatus[0].id);
-      });
-    });		
+        "query": updateMyHub
+      },
+    }).then((res) => {
+      expect(res.status).to.eq(200);
+      expect(res.body).to.have.nested.property("data.updateMyHub.HubName");
+      expect(res.body.data.updateMyHub.HubName).to.eq("my-chaos-hub-1");
+    });
   });
 
-  it("Updating the hub configuration", () => {
-    cy.task('getProjectID').then((project_id) => {
-      cy.task('getHubID').then((hub_id) => {
-        cy.request({
-          method: "POST",
-          url: Cypress.env("apiURL") + '/query',
-          body: { 
-            "operationName": "updateMyHub",
-            "variables": {
-              "myhubInput": {
-                "id": hub_id,
-                "HubName": "my-chaos-hub-1",
-                "RepoURL": "https://github.com/litmuschaos/chaos-charts",
-                "RepoBranch": "master",
-                "IsPrivate": false,
-                "AuthType": "basic",
-                "UserName": "user",
-                "Password": "user",
-              },
-              "projectID": project_id,
-            },
-            "query": `mutation updateMyHub($myhubInput: UpdateMyHub!, $projectID: String!){
-              updateMyHub(myhubInput: $myhubInput, projectID: $projectID){
-                id
-                RepoURL
-                RepoBranch
-                ProjectID
-                HubName
-                IsPrivate
-                AuthType
-                Token
-                UserName
-                Password
-                SSHPrivateKey
-                IsRemoved
-                CreatedAt
-                UpdatedAt
-                LastSyncedAt
-              }
-            }`
+  it("Updating the hub configuration of a project with no access [ Should not be possible ]", () => {
+    cy.logout();
+    cy.requestLogin(user.user2.username, user.user2.password);
+    cy.request({
+      method: "POST",
+      url: Cypress.env("apiURL") + '/query',
+      body: { 
+        "operationName": "updateMyHub",
+        "variables": {
+          myhubInput: {
+            ...myhubInput.default,
+            id: hubId,
+            HubName: "my-chaos-hub"
           },
-        }).then((res) => {
-          expect(res.status).to.eq(200);
-          expect(res.body).to.have.nested.property("data.updateMyHub");
-        });
-      });
-    });	
+          "projectID": project1Id,
+        },
+        "query": updateMyHub
+      },
+      failOnStatusCode: false
+    }).then((res) => {
+      cy.validateErrorMessage(res, "permission_denied");
+    });
   });
 
-  // it("Syncing hub", () => {
-  //   cy.task('getProjectID').then((project_id) => {
-  //     cy.request({
-  //       method: "POST",
-  //       url: Cypress.env("apiURL") + '/query',
-  //       body: { 
-  //         "operationName": "syncHub",
-  //         "variables": {
-  //           "projectID": project_id,
-  //         },
-  //         "query": `mutation syncHub($projectID: ID!){
-  //           syncHub(id: $projectID){
-  //             id
-  //             RepoURL
-  //             RepoBranch
-  //             IsAvailable
-  //             TotalExp
-  //             HubName
-  //             IsPrivate
-  //             AuthType
-  //             Token
-  //             UserName
-  //             Password
-  //             IsRemoved
-  //             SSHPrivateKey
-  //             SSHPublicKey
-  //             LastSyncedAt
-  //           }
-  //         }`
+  // it("Deleting the hub of a project with no access [ Should not be possible ]", () => {
+  //   cy.logout();
+  //   cy.requestLogin(user.user2.username, user.user2.password);
+  //   cy.request({
+  //     method: "POST",
+  //     url: Cypress.env("apiURL") + '/query',
+  //     body: { 
+  //       "operationName": "deleteMyHub",
+  //       "variables": {
+  //         "hub_id": hubId
   //       },
-  //     }).then((res) => {
-  //       expect(res.status).to.eq(200);
-  //       expect(res.body).to.have.nested.property("data.syncHub");
-  //       cy.task('setHubID', res.body.data.syncHub[0].id);
-  //     });
-  //   });		
+  //       "query": deleteMyHub
+  //     },
+  //     failOnStatusCode: false
+  //   }).then((res) => {
+  //     cy.validateErrorMessage(res, "permission_denied");
+  //   });
   // });
 
-  it("Deleting the myhub", () => {
-    cy.task('getHubID').then((hub_id) => {
-      cy.request({
-        method: "POST",
-        url: Cypress.env("apiURL") + '/query',
-        body: { 
-          "operationName": "deleteMyHub",
-          "variables": {
-            "hub_id": hub_id
-          },
-          "query": `mutation deleteMyHub($hub_id: String!){
-            deleteMyHub(hub_id: $hub_id)
-          }`
+  it("Deleting the hub of a project with editor access", () => {
+    cy.logout();
+    cy.requestLogin(user.user1.username, user.user1.password);
+    cy.request({
+      method: "POST",
+      url: Cypress.env("apiURL") + '/query',
+      body: { 
+        "operationName": "deleteMyHub",
+        "variables": {
+          "hub_id": hubId
         },
-      }).then((res) => {
-        expect(res.status).to.eq(200);
-        expect(res.body).to.have.nested.property("data.deleteMyHub");
-      });
+        "query": deleteMyHub
+      },
+    }).then((res) => {
+      expect(res.status).to.eq(200);
+      expect(res.body).to.have.nested.property("data.deleteMyHub");
+      expect(res.body.data.deleteMyHub).to.eq(true);
     });
   });
 });
