@@ -142,12 +142,16 @@ Cypress.Commands.add("validateErrorMessage", (res, message) => {
   expect(res.body.errors[0].message).to.eq(message);
 });
 
+/*
+  Project1: Admin(Owner), user1(Editor), user3(Viewer)
+  Project2: Admin(Owner), user2(Viewer)
+*/
 Cypress.Commands.add("securityCheckSetup", () => {
   const Projects = {
     project1: "project1",
-    project2: "project1",
+    project2: "project2",
   };
-  let project1Id, project2Id, user1Id, user2Id, accessToken;
+  let project1Id, project2Id, user1Id, user2Id, user3Id, accessToken;
   cy.requestLogin(user.AdminName, user.AdminPassword);
   return cy.getCookie("litmus-cc-token")
     .then((token) => {
@@ -176,6 +180,18 @@ Cypress.Commands.add("securityCheckSetup", () => {
           user2Id = res.body._id;
         });
       
+      // create user3
+      const createUser3 = cy.request({
+        method: "POST",
+        url: Cypress.env("authURL") + "/create",
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+        },
+        body: { ...(user.user3) }
+      }).then((res) => {
+          user3Id = res.body._id;
+        });
+      
       // create project1
       const createProject1 = cy.request({
         method: "POST",
@@ -202,7 +218,7 @@ Cypress.Commands.add("securityCheckSetup", () => {
       }).then((res) => {
           project2Id = res.body.data.ID;
         });
-      return Promise.all([createUser1, createUser2, createProject1, createProject2]);
+      return Promise.all([createUser1, createUser2, createUser3, createProject1, createProject2]);
     })
     .then(() => {
       // send invitation of project1 to user1 with Editor role
@@ -220,6 +236,21 @@ Cypress.Commands.add("securityCheckSetup", () => {
       })
     })
     .then(() => {
+      // send invitation of project1 to user3 with Viewer role
+      return cy.request({
+        method: "POST",
+        url: Cypress.env("authURL") + "/send_invitation",
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+        },
+        body: {
+          project_id: project1Id,
+          user_id: user3Id,
+          role: "Viewer"
+        }
+      })
+    })
+    .then(() => {
       // send invitation of project2 to user2 with Viewer role
       return cy.request({
         method: "POST",
@@ -233,6 +264,24 @@ Cypress.Commands.add("securityCheckSetup", () => {
           role: "Viewer"
         }
       }) 
+    })
+    .then(() => {
+      cy.logout();
+      cy.requestLogin(user.user3.username, user.user3.password);
+      return cy.getCookie("litmus-cc-token");
+    })
+    .then((token) => {
+      return cy.request({
+        method: "POST",
+        url: Cypress.env("authURL") + "/accept_invitation",
+        headers: {
+          authorization: `Bearer ${token.value}`,
+        },
+        body: {
+          "project_id": project1Id,
+          "user_id": user3Id
+        }
+      })
     })
     .then(() => {
       cy.logout();
@@ -271,6 +320,6 @@ Cypress.Commands.add("securityCheckSetup", () => {
       })
     })
     .then(() => {
-      return {project1Id, project2Id, user1Id, user2Id};
+      return {project1Id, project2Id, user1Id, user2Id, user3Id};
     });
 });

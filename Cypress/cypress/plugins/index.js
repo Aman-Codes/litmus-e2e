@@ -34,7 +34,7 @@ module.exports = (on, config) => {
           resolve(null)
         })
       })
-    },    
+    },
     getSecuritySetupVariable: () => {
       if(global.setupVariable) {
         return global.setupVariable;

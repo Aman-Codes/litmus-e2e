@@ -17,10 +17,17 @@
     "name": "Test Account 1"
   },
   "user2": {
-    "username": "user1",
-    "password": "user1",
+    "username": "user2",
+    "password": "user2",
     "role": "user",
     "email": "user2@litmus.com",
     "name": "Test Account 2"
+  },
+  "user3": {
+    "username": "user3",
+    "password": "user3",
+    "role": "user",
+    "email": "user3@litmus.com",
+    "name": "Test Account 3"
   }
 }
