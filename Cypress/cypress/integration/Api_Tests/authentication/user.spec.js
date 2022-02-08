@@ -1,13 +1,13 @@
 /// <reference types="Cypress" />
 
 import * as user from "../../../fixtures/Users.json";
-
-let adminAccessToken, user1AccessToken;
+import { endpoints } from "../../../fixtures/authenticationEndpoints";
+let adminAccessToken, user1AccessToken, user1Id, adminUserId;
 describe("Testing post request to /login api", () => {
   it("Testing login api without password [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("authURL") + "/login",
+      url: Cypress.env("authURL") + endpoints.login(),
       body: {
         username: user.AdminName,
       },
@@ -21,7 +21,7 @@ describe("Testing post request to /login api", () => {
   it("Testing login api without username [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("authURL") + "/login",
+      url: Cypress.env("authURL") + endpoints.login(),
       body: {
         password: user.AdminPassword,
       },
@@ -35,7 +35,7 @@ describe("Testing post request to /login api", () => {
   it("Testing login api with incorrect password [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("authURL") + "/login",
+      url: Cypress.env("authURL") + endpoints.login(),
       body: {
         username: user.AdminName,
         password: "SomeInvalidPassword",
@@ -50,7 +50,7 @@ describe("Testing post request to /login api", () => {
   it("Testing login api with correct password", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("authURL") + "/login",
+      url: Cypress.env("authURL") + endpoints.login(),
       body: {
         username: user.AdminName,
         password: user.AdminPassword,
@@ -67,7 +67,7 @@ describe("Testing post request to /create api", () => {
   it("Testing create api without access_token [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("authURL") + "/create",
+      url: Cypress.env("authURL") + endpoints.createUser(),
       body: {
         ...user.user1,
       },
@@ -81,7 +81,7 @@ describe("Testing post request to /create api", () => {
   it("Testing create api with missing username [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("authURL") + "/create",
+      url: Cypress.env("authURL") + endpoints.createUser(),
       headers: {
         authorization: `Bearer ${adminAccessToken}`,
       },
@@ -99,7 +99,7 @@ describe("Testing post request to /create api", () => {
   it("Testing create api with missing password [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("authURL") + "/create",
+      url: Cypress.env("authURL") + endpoints.createUser(),
       headers: {
         authorization: `Bearer ${adminAccessToken}`,
       },
@@ -117,7 +117,7 @@ describe("Testing post request to /create api", () => {
   it("Testing create api with missing role [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("authURL") + "/create",
+      url: Cypress.env("authURL") + endpoints.createUser(),
       headers: {
         authorization: `Bearer ${adminAccessToken}`,
       },
@@ -135,7 +135,7 @@ describe("Testing post request to /create api", () => {
   it("Testing create api with invalid role [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("authURL") + "/create",
+      url: Cypress.env("authURL") + endpoints.createUser(),
       headers: {
         authorization: `Bearer ${adminAccessToken}`,
       },
@@ -154,7 +154,7 @@ describe("Testing post request to /create api", () => {
   // it("Testing create api with missing email", () => {
   //   cy.request({
   //     method: "POST",
-  //     url: Cypress.env("authURL") + "/create",
+  //     url: Cypress.env("authURL") + endpoints.createUser(),
   //     headers: {
   //       authorization: `Bearer ${adminAccessToken}`,
   //     },
@@ -173,7 +173,7 @@ describe("Testing post request to /create api", () => {
   // it("Testing create api with missing name", () => {
   //   cy.request({
   //     method: "POST",
-  //     url: Cypress.env("authURL") + "/create",
+  //     url: Cypress.env("authURL") + endpoints.createUser(),
   //     headers: {
   //       authorization: `Bearer ${adminAccessToken}`,
   //     },
@@ -188,10 +188,11 @@ describe("Testing post request to /create api", () => {
   //     expect(res.body.error).to.eq("invalid_credentials");
   //   });
   // });
+
   it("Creating a new user by an admin role user", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("authURL") + "/create",
+      url: Cypress.env("authURL") + endpoints.createUser(),
       headers: {
         authorization: `Bearer ${adminAccessToken}`,
       },
@@ -202,12 +203,14 @@ describe("Testing post request to /create api", () => {
       expect(res.body).to.have.property("_id");
       expect(res.body).to.have.property("username");
       expect(res.body).to.have.property("role");
+      user1Id = res.body._id;
     });
   });
+
   it("Creating a new user by a non-admin role user [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("authURL") + "/login",
+      url: Cypress.env("authURL") + endpoints.login(),
       body: {
         username: user.user1.username,
         password: user.user1.password,
@@ -221,7 +224,7 @@ describe("Testing post request to /create api", () => {
       .then(() => {
         return cy.request({
           method: "POST",
-          url: Cypress.env("authURL") + "/create",
+          url: Cypress.env("authURL") + endpoints.createUser(),
           headers: {
             authorization: `Bearer ${user1AccessToken}`,
           },
@@ -237,10 +240,11 @@ describe("Testing post request to /create api", () => {
         expect(res.body.error).to.eq("unauthorized");
       });
   });
+
   it("Creating a new user with existing username [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("authURL") + "/create",
+      url: Cypress.env("authURL") + endpoints.createUser(),
       headers: {
         authorization: `Bearer ${adminAccessToken}`,
       },
@@ -260,7 +264,7 @@ describe("Testing get request to /users api", () => {
   it("Testing users api without access_token [ Should not be possible ]", () => {
     cy.request({
       method: "GET",
-      url: Cypress.env("authURL") + "/users",
+      url: Cypress.env("authURL") + endpoints.getAllUsers(),
       failOnStatusCode: false,
     }).then((res) => {
       expect(res.body).to.have.property("error");
@@ -271,7 +275,7 @@ describe("Testing get request to /users api", () => {
   it("Testing users api by admin role user", () => {
     cy.request({
       method: "GET",
-      url: Cypress.env("authURL") + "/users",
+      url: Cypress.env("authURL") + endpoints.getAllUsers(),
       headers: {
         authorization: `Bearer ${adminAccessToken}`,
       },
@@ -282,13 +286,16 @@ describe("Testing get request to /users api", () => {
         expect(userData).to.have.property("_id");
         expect(userData).to.have.property("username");
         expect(userData).to.have.property("role");
+        if (userData.username === user.AdminName) {
+          adminUserId = userData._id;
+        }
       });
     });
   });
   it("Testing users api by user role user", () => {
     cy.request({
       method: "GET",
-      url: Cypress.env("authURL") + "/users",
+      url: Cypress.env("authURL") + endpoints.getAllUsers(),
       headers: {
         authorization: `Bearer ${user1AccessToken}`,
       },
@@ -301,5 +308,76 @@ describe("Testing get request to /users api", () => {
         expect(userData).to.have.property("role");
       });
     });
+  });
+});
+
+describe("Testing post request to /update/details api", () => {
+  it("Testing api without access_token [ Should not be possible ]", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("authURL") + endpoints.updateDetails(),
+      body: {
+        ...user.user1,
+      },
+      failOnStatusCode: false,
+    }).then((res) => {
+      expect(res.body).to.have.property("error");
+      expect(res.body).to.have.property("error_description");
+      expect(res.body.error).to.eq("unauthorized");
+    });
+  });
+  it("Testing api from admin account", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("authURL") + endpoints.updateDetails(),
+      headers: {
+        authorization: `Bearer ${adminAccessToken}`,
+      },
+      body: {
+        name: "abc",
+        email: "test@test.com",
+      },
+    })
+      .then((res) => {
+        expect(res.body).to.have.property("message");
+        return cy.request({
+          method: "GET",
+          url: Cypress.env("authURL") + endpoints.getUserById(adminUserId),
+          headers: {
+            authorization: `Bearer ${adminAccessToken}`,
+          },
+        });
+      })
+      .then((res) => {
+        expect(res.body.name).to.equal("abc");
+        expect(res.body.email).to.equal("test@test.com");
+      });
+  });
+  it("Testing api from user account", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("authURL") + endpoints.updateDetails(),
+      headers: {
+        authorization: `Bearer ${user1AccessToken}`,
+      },
+      body: {
+        name: "abc",
+        email: "test@test.com",
+      },
+    })
+      .then((res) => {
+        expect(res.body).to.have.property("message");
+        return cy.request({
+          method: "GET",
+          url: Cypress.env("authURL") + endpoints.getUserById(user1Id),
+          headers: {
+            authorization: `Bearer ${user1AccessToken}`,
+          },
+        });
+      })
+      .then((res) => {
+        expect(res.body.name).to.equal("abc");
+        expect(res.body.email).to.equal("test@test.com");
+      });
   });
 });
