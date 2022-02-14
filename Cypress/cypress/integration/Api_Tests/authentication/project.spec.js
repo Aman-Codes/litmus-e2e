@@ -3,8 +3,8 @@
 import * as user from "../../../fixtures/Users.json";
 import { endpoints } from "../../../fixtures/authenticationEndpoints";
 
-const Project1Name = "Project1f",
-  Project2Name = "Project2f";
+const Project1Name = "Project1g",
+  Project2Name = "Project2g";
 let user1Id,
   user2Id,
   user3Id,
@@ -411,6 +411,248 @@ describe("Testing post request to sendInvitation api", () => {
       },
     }).then((res) => {
       expect(res.body).to.have.property("data");
+    });
+  });
+
+  it("Sending invitation of project2 to user2", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("authURL") + endpoints.sendInvitation(),
+      headers: {
+        authorization: `Bearer ${user1AccessToken}`,
+      },
+      body: {
+        project_id: Project2Id,
+        user_id: user2Id,
+        role: "Editor",
+      },
+    }).then((res) => {
+      expect(res.body).to.have.property("data");
+    });
+  });
+
+  it("Sending invitation of project2 to user3", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("authURL") + endpoints.sendInvitation(),
+      headers: {
+        authorization: `Bearer ${user1AccessToken}`,
+      },
+      body: {
+        project_id: Project2Id,
+        user_id: user3Id,
+        role: "Viewer",
+      },
+    }).then((res) => {
+      expect(res.body).to.have.property("data");
+    });
+  });
+});
+
+describe("Testing post request to declineInvitation api", () => {
+  it("Testing api without access_token [ Should not be possible ]", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("authURL") + endpoints.declineInvitation(),
+      body: {
+        project_id: Project1Id,
+        user_id: user1Id,
+      },
+      failOnStatusCode: false,
+    }).then((res) => {
+      expect(res.body).to.have.property("error");
+      expect(res.body).to.have.property("error_description");
+      expect(res.body.error).to.eq("unauthorized");
+    });
+  });
+
+  it("Testing api without project_id [ Should not be possible ]", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("authURL") + endpoints.declineInvitation(),
+      headers: {
+        authorization: `Bearer ${user1AccessToken}`,
+      },
+      body: {
+        user_id: user1Id,
+      },
+      failOnStatusCode: false,
+    }).then((res) => {
+      expect(res.body).to.have.property("error");
+      expect(res.body).to.have.property("error_description");
+      expect(res.body.error).to.eq("unauthorized");
+    });
+  });
+
+  it("Testing api without user_id [ Should not be possible ]", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("authURL") + endpoints.declineInvitation(),
+      headers: {
+        authorization: `Bearer ${user1AccessToken}`,
+      },
+      body: {
+        project_id: Project1Id,
+      },
+      failOnStatusCode: false,
+    }).then((res) => {
+      expect(res.body).to.have.property("error");
+      expect(res.body).to.have.property("error_description");
+    });
+  });
+
+  it("Decline invitation which was never sent", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("authURL") + endpoints.declineInvitation(),
+      headers: {
+        authorization: `Bearer ${adminAccessToken}`,
+      },
+      body: {
+        project_id: Project1Id,
+        user_id: user2Id,
+      },
+    }).then((res) => {
+      expect(res.body).to.have.property("error");
+      expect(res.body).to.have.property("error_description");
+    });
+  });
+
+  it("Decline invitation of project1 by user1", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("authURL") + endpoints.declineInvitation(),
+      headers: {
+        authorization: `Bearer ${user1AccessToken}`,
+      },
+      body: {
+        project_id: Project1Id,
+        user_id: user1Id,
+      },
+    }).then((res) => {
+      expect(res.body).to.have.property("message");
+      expect(res.body.message).to.eq("Successful");
+    });
+  });
+});
+
+describe("Testing post request to acceptInvitation api", () => {
+  it("Testing api without access_token [ Should not be possible ]", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("authURL") + endpoints.acceptInvitation(),
+      body: {
+        project_id: Project1Id,
+        user_id: user1Id,
+      },
+      failOnStatusCode: false,
+    }).then((res) => {
+      expect(res.body).to.have.property("error");
+      expect(res.body).to.have.property("error_description");
+      expect(res.body.error).to.eq("unauthorized");
+    });
+  });
+
+  it("Testing api without project_id [ Should not be possible ]", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("authURL") + endpoints.acceptInvitation(),
+      headers: {
+        authorization: `Bearer ${user1AccessToken}`,
+      },
+      body: {
+        user_id: user1Id,
+      },
+      failOnStatusCode: false,
+    }).then((res) => {
+      expect(res.body).to.have.property("error");
+      expect(res.body).to.have.property("error_description");
+      expect(res.body.error).to.eq("unauthorized");
+    });
+  });
+
+  it("Testing api without user_id [ Should not be possible ]", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("authURL") + endpoints.acceptInvitation(),
+      headers: {
+        authorization: `Bearer ${user1AccessToken}`,
+      },
+      body: {
+        project_id: Project1Id,
+      },
+      failOnStatusCode: false,
+    }).then((res) => {
+      expect(res.body).to.have.property("error");
+      expect(res.body).to.have.property("error_description");
+    });
+  });
+
+  it("Accept invitation which was never sent", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("authURL") + endpoints.acceptInvitation(),
+      headers: {
+        authorization: `Bearer ${adminAccessToken}`,
+      },
+      body: {
+        project_id: Project1Id,
+        user_id: user2Id,
+      },
+    }).then((res) => {
+      expect(res.body).to.have.property("error");
+      expect(res.body).to.have.property("error_description");
+    });
+  });
+
+  it("Accept invitation of project1 by user3", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("authURL") + endpoints.acceptInvitation(),
+      headers: {
+        authorization: `Bearer ${user1AccessToken}`,
+      },
+      body: {
+        project_id: Project1Id,
+        user_id: user3Id,
+      },
+    }).then((res) => {
+      expect(res.body).to.have.property("message");
+      expect(res.body.message).to.eq("Successful");
+    });
+  });
+
+  it("Accept invitation of project2 by user2", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("authURL") + endpoints.acceptInvitation(),
+      headers: {
+        authorization: `Bearer ${user1AccessToken}`,
+      },
+      body: {
+        project_id: Project2Id,
+        user_id: user2Id,
+      },
+    }).then((res) => {
+      expect(res.body).to.have.property("message");
+      expect(res.body.message).to.eq("Successful");
+    });
+  });
+
+  it("Accept invitation of project2 by user3", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("authURL") + endpoints.acceptInvitation(),
+      headers: {
+        authorization: `Bearer ${user1AccessToken}`,
+      },
+      body: {
+        project_id: Project2Id,
+        user_id: user3Id,
+      },
+    }).then((res) => {
+      expect(res.body).to.have.property("message");
+      expect(res.body.message).to.eq("Successful");
     });
   });
 });
