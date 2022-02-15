@@ -12,7 +12,7 @@ describe("Testing get request to status api", () => {
       url: Cypress.env("authURL") + endpoints.status(),
     }).then((res) => {
       expect(res.body).to.have.property("status");
-      expect(res.body.status).to.equal("up");
+      expect(res.body.status).to.eq("up");
     });
   });
 });
@@ -406,8 +406,8 @@ describe("Testing post request to updateDetails api", () => {
         });
       })
       .then((res) => {
-        expect(res.body.name).to.equal("abc");
-        expect(res.body.email).to.equal("test@test.com");
+        expect(res.body.name).to.eq("abc");
+        expect(res.body.email).to.eq("test@test.com");
       });
   });
 
@@ -434,8 +434,8 @@ describe("Testing post request to updateDetails api", () => {
         });
       })
       .then((res) => {
-        expect(res.body.name).to.equal("abc");
-        expect(res.body.email).to.equal("test@test.com");
+        expect(res.body.name).to.eq("abc");
+        expect(res.body.email).to.eq("test@test.com");
       });
   });
 });
@@ -636,7 +636,7 @@ describe("Testing post request to updatePassword api", () => {
       .then((res) => {
         expect(res.body).to.have.property("error");
         expect(res.body).to.have.property("error_description");
-        expect(res.body.error).to.equal("invalid_credentials");
+        expect(res.body.error).to.eq("invalid_credentials");
         return cy.request({
           method: "POST",
           url: Cypress.env("authURL") + endpoints.login(),
@@ -747,7 +747,7 @@ describe("Testing post request to resetPassword api", () => {
       .then((res) => {
         expect(res.body).to.have.property("error");
         expect(res.body).to.have.property("error_description");
-        expect(res.body.error).to.equal("invalid_credentials");
+        expect(res.body.error).to.eq("invalid_credentials");
         return cy.request({
           method: "POST",
           url: Cypress.env("authURL") + endpoints.login(),

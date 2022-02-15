@@ -3,13 +3,15 @@
 import * as user from "../../../fixtures/Users.json";
 import { endpoints } from "../../../fixtures/authenticationEndpoints";
 
-const Project1Name = "Project1g",
-  Project2Name = "Project2g";
+const Project1Name = "Project1u",
+  Project2Name = "Project2u";
 let user1Id,
   user2Id,
   user3Id,
   adminAccessToken,
   user1AccessToken,
+  user2AccessToken,
+  user3AccessToken,
   Project1Id,
   Project2Id;
 
@@ -68,9 +70,35 @@ before("create 3 test users", () => {
     })
     .then((res) => {
       user1AccessToken = res.body.access_token;
+      return cy.request({
+        method: "POST",
+        url: Cypress.env("authURL") + endpoints.login(),
+        body: {
+          username: user.user2.username,
+          password: user.user2.password,
+        },
+      });
+    })
+    .then((res) => {
+      user2AccessToken = res.body.access_token;
+      return cy.request({
+        method: "POST",
+        url: Cypress.env("authURL") + endpoints.login(),
+        body: {
+          username: user.user3.username,
+          password: user.user3.password,
+        },
+      });
+    })
+    .then((res) => {
+      user3AccessToken = res.body.access_token;
     });
 });
 
+/*
+  Project1: admin (Owner), user3 (Editor)
+  Project2: user1(Owner), user2(Editor), user3(Viewer)
+*/
 describe("Testing post request to createProject api", () => {
   it("Testing api without access_token [ Should not be possible ]", () => {
     cy.request({
@@ -122,7 +150,7 @@ describe("Testing post request to createProject api", () => {
         }
       );
       expect(res.body.data.Members).to.be.an("array");
-      expect(res.body.data.Members.length).to.equal(1);
+      expect(res.body.data.Members.length).to.eq(1);
       Project1Id = res.body.data.ID;
     });
   });
@@ -145,7 +173,7 @@ describe("Testing post request to createProject api", () => {
         }
       );
       expect(res.body.data.Members).to.be.an("array");
-      expect(res.body.data.Members.length).to.equal(1);
+      expect(res.body.data.Members.length).to.eq(1);
       Project2Id = res.body.data.ID;
     });
   });
@@ -200,7 +228,7 @@ describe("Testing get request to listProjects api", () => {
           }
         );
         expect(project.Members).to.be.an("array");
-        expect(project.Members.length).to.equal(1);
+        expect(project.Members.length).to.eq(1);
       });
     });
   });
@@ -234,7 +262,7 @@ describe("Testing get request to getProjectById api [ Should not be possible ]",
         }
       );
       expect(res.body.data.Members).to.be.an("array");
-      expect(res.body.data.Members.length).to.equal(1);
+      expect(res.body.data.Members.length).to.eq(1);
     });
   });
 
@@ -266,7 +294,7 @@ describe("Testing get request to getProjectById api [ Should not be possible ]",
         }
       );
       expect(res.body.data.Members).to.be.an("array");
-      expect(res.body.data.Members.length).to.equal(1);
+      expect(res.body.data.Members.length).to.eq(1);
     });
   });
 
@@ -369,7 +397,7 @@ describe("Testing post request to sendInvitation api", () => {
       },
       body: {
         project_id: Project2Id,
-        user_id: user3Id,
+        user_id: user2Id,
         role: "Viewer",
       },
       failOnStatusCode: false,
@@ -501,7 +529,7 @@ describe("Testing post request to declineInvitation api", () => {
     });
   });
 
-  it("Decline invitation which was never sent", () => {
+  it("Decline invitation which was never sent [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
       url: Cypress.env("authURL") + endpoints.declineInvitation(),
@@ -510,24 +538,25 @@ describe("Testing post request to declineInvitation api", () => {
       },
       body: {
         project_id: Project1Id,
-        user_id: user2Id,
+        user_id: user1Id,
       },
+      failOnStatusCode: false,
     }).then((res) => {
       expect(res.body).to.have.property("error");
       expect(res.body).to.have.property("error_description");
     });
   });
 
-  it("Decline invitation of project1 by user1", () => {
+  it("Decline invitation of project1 by user2", () => {
     cy.request({
       method: "POST",
       url: Cypress.env("authURL") + endpoints.declineInvitation(),
       headers: {
-        authorization: `Bearer ${user1AccessToken}`,
+        authorization: `Bearer ${user2AccessToken}`,
       },
       body: {
         project_id: Project1Id,
-        user_id: user1Id,
+        user_id: user2Id,
       },
     }).then((res) => {
       expect(res.body).to.have.property("message");
@@ -588,7 +617,7 @@ describe("Testing post request to acceptInvitation api", () => {
     });
   });
 
-  it("Accept invitation which was never sent", () => {
+  it("Accept invitation which was never sent [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
       url: Cypress.env("authURL") + endpoints.acceptInvitation(),
@@ -597,8 +626,9 @@ describe("Testing post request to acceptInvitation api", () => {
       },
       body: {
         project_id: Project1Id,
-        user_id: user2Id,
+        user_id: user1Id,
       },
+      failOnStatusCode: false,
     }).then((res) => {
       expect(res.body).to.have.property("error");
       expect(res.body).to.have.property("error_description");
@@ -610,7 +640,7 @@ describe("Testing post request to acceptInvitation api", () => {
       method: "POST",
       url: Cypress.env("authURL") + endpoints.acceptInvitation(),
       headers: {
-        authorization: `Bearer ${user1AccessToken}`,
+        authorization: `Bearer ${user3AccessToken}`,
       },
       body: {
         project_id: Project1Id,
@@ -627,7 +657,7 @@ describe("Testing post request to acceptInvitation api", () => {
       method: "POST",
       url: Cypress.env("authURL") + endpoints.acceptInvitation(),
       headers: {
-        authorization: `Bearer ${user1AccessToken}`,
+        authorization: `Bearer ${user2AccessToken}`,
       },
       body: {
         project_id: Project2Id,
@@ -644,7 +674,7 @@ describe("Testing post request to acceptInvitation api", () => {
       method: "POST",
       url: Cypress.env("authURL") + endpoints.acceptInvitation(),
       headers: {
-        authorization: `Bearer ${user1AccessToken}`,
+        authorization: `Bearer ${user3AccessToken}`,
       },
       body: {
         project_id: Project2Id,
@@ -653,6 +683,118 @@ describe("Testing post request to acceptInvitation api", () => {
     }).then((res) => {
       expect(res.body).to.have.property("message");
       expect(res.body.message).to.eq("Successful");
+    });
+  });
+});
+
+describe("Testing get request to getUserWithProject api", () => {
+  it("Testing api without access_token [ Should not be possible ]", () => {
+    cy.request({
+      method: "GET",
+      url:
+        Cypress.env("authURL") +
+        endpoints.getUserWithProject(user.user3.username),
+      failOnStatusCode: false,
+    }).then((res) => {
+      expect(res.body).to.have.property("error");
+      expect(res.body).to.have.property("error_description");
+      expect(res.body.error).to.eq("unauthorized");
+    });
+  });
+
+  it("Testing api with invalid username [ Should not be possible ]", () => {
+    cy.request({
+      method: "GET",
+      url: Cypress.env("authURL") + endpoints.getUserWithProject("abc"),
+      headers: {
+        authorization: `Bearer ${adminAccessToken}`,
+      },
+      failOnStatusCode: false,
+    }).then((res) => {
+      expect(res.body).to.have.property("error");
+      expect(res.body).to.have.property("error_description");
+      expect(res.body.error).to.eq("user does not exists");
+    });
+  });
+
+  /*it("Testing api by non-admin user [ Should not be possible ]", () => {
+    cy.request({
+      method: "GET",
+      url:
+        Cypress.env("authURL") +
+        endpoints.getUserWithProject(user.user3.username),
+      headers: {
+        authorization: `Bearer ${user1AccessToken}`,
+      },
+      failOnStatusCode: false,
+    }).then((res) => {
+      expect(res.body).to.have.property("error");
+      expect(res.body).to.have.property("error_description");
+    });
+  });*/
+
+  /*it("Testing api to get self project information", () => {
+    cy.request({
+      method: "GET",
+      url:
+        Cypress.env("authURL") +
+        endpoints.getUserWithProject(user.user1.username),
+      headers: {
+        authorization: `Bearer ${user1AccessToken}`,
+      },
+      failOnStatusCode: false,
+    }).then((res) => {
+      expect(res.body).to.have.property("data");
+      ["CreatedAt", "Email", "ID", "Name", "Projects", "Username"].forEach(
+        (property) => {
+          expect(res.body.data).to.have.property(property);
+        }
+      );
+      expect(res.body.data.Projects).to.be.an("array");
+      res.body.data.Projects.forEach((project) => {
+        ["ID", "CreatedAt", "Members", "Name", "State", "UpdatedAt"].forEach(
+          (property) => {
+            expect(project).to.have.property(property);
+          }
+        );
+        expect(project.Members).to.be.an("array");
+        ["Invitation", "JoinedAt", "Role", "UserID"].forEach((property) => {
+          expect(project.Members).to.have.property(property);
+        });
+      });
+    });
+  });*/
+
+  it("Testing api by admin user", () => {
+    cy.request({
+      method: "GET",
+      url:
+        Cypress.env("authURL") +
+        endpoints.getUserWithProject(user.user2.username),
+      headers: {
+        authorization: `Bearer ${adminAccessToken}`,
+      },
+    }).then((res) => {
+      expect(res.body).to.have.property("data");
+      ["CreatedAt", "Email", "ID", "Name", "Projects", "Username"].forEach(
+        (property) => {
+          expect(res.body.data).to.have.property(property);
+        }
+      );
+      expect(res.body.data.Projects).to.be.an("array");
+      res.body.data.Projects.forEach((project) => {
+        ["ID", "CreatedAt", "Members", "Name", "State", "UpdatedAt"].forEach(
+          (projectProperty) => {
+            expect(project).to.have.property(projectProperty);
+          }
+        );
+        expect(project.Members).to.be.an("array");
+        ["Invitation", "JoinedAt", "Role", "UserID"].forEach(
+          (memberProperty) => {
+            expect(project.Members).to.have.property(memberProperty);
+          }
+        );
+      });
     });
   });
 });
