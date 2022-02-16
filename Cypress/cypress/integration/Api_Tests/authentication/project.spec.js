@@ -3,8 +3,8 @@
 import * as user from "../../../fixtures/Users.json";
 import { endpoints } from "../../../fixtures/authenticationEndpoints";
 
-const Project1Name = "Project1u",
-  Project2Name = "Project2u";
+const Project1Name = "Project1",
+  Project2Name = "Project2";
 let user1Id,
   user2Id,
   user3Id,
@@ -789,11 +789,13 @@ describe("Testing get request to getUserWithProject api", () => {
           }
         );
         expect(project.Members).to.be.an("array");
-        ["Invitation", "JoinedAt", "Role", "UserID"].forEach(
-          (memberProperty) => {
-            expect(project.Members).to.have.property(memberProperty);
-          }
-        );
+        project.Members.forEach((member) => {
+          ["Invitation", "JoinedAt", "Role", "UserID"].forEach(
+            (memberProperty) => {
+              expect(member).to.have.property(memberProperty);
+            }
+          );
+        });
       });
     });
   });
