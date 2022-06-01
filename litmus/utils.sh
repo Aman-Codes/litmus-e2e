@@ -195,6 +195,16 @@ function setup_ingress(){
     wait_for_ingress litmus-ingress ${namespace}
 }
 
+function get_mongo_url(){
+    namespace=$1
+    export NODE_NAME=$(kubectl -n ${namespace} get pod  -l "component=database" -o=jsonpath='{.items[*].spec.nodeName}')
+    export NODE_IP=$(kubectl -n ${namespace} get nodes $NODE_NAME -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}')
+    export NODE_PORT=$(kubectl -n ${namespace} get -o jsonpath="{.spec.ports[0].nodePort}" services mongo-service)
+    export AccessURL="http://$NODE_IP:$NODE_PORT"
+    echo "MONGO_URL=$AccessURL" >> $GITHUB_ENV
+
+}
+
 # Function to get Access point of ChaosCenter based on Service type(mode) deployed in given namespace
 function get_access_point(){
     namespace=$1
