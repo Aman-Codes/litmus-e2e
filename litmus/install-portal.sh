@@ -7,6 +7,7 @@ version=${PORTAL_VERSION}
 accessType=${ACCESS_TYPE}
 namespace=${NAMESPACE}
 installation_mode=${INSTALLATION_MODE}
+deploy_self_agent=${DEPLOY_SELF_AGENT:="true"}
 
 
 function install_portal_cs_mode() {
@@ -56,6 +57,9 @@ function wait_for_portal_to_be_ready(){
 
     # Deployments verification
     verify_all_components litmusportal-frontend,litmusportal-server ${namespace}
+    
+    # Setting Self_Agent to false
+    kubectl set env deployment/litmusportal-server -n litmus --containers="graphql-server" SELF_AGENT=${deploy_self_agent}
 
     # Pods verification
     verify_pod litmusportal-frontend ${namespace}
@@ -77,4 +81,5 @@ else
 fi
 
 wait_for_portal_to_be_ready
+get_mongo_url ${namespace}
 get_access_point ${namespace} ${accessType}
