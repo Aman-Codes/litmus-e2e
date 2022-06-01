@@ -81,4 +81,5 @@ else
 fi
 
 wait_for_portal_to_be_ready
+get_mongo_url ${namespace}
 get_access_point ${namespace} ${accessType}
