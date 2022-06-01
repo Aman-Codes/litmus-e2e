@@ -18,7 +18,7 @@
 
 const { rmdir } = require("fs");
 const MongoClient = require("mongodb").MongoClient;
-const MONGO_URL = "mongodb://admin:1234@" + Cypress.env("MONGO_URL");
+const MONGO_URL = "mongodb://admin:1234@" + process.env.CYPRESS_MONGO_URL;
 
 async function drop(databaseName, mongoClient, collectionName) {
   const collection = mongoClient.db(databaseName).collection(collectionName);
