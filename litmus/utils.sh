@@ -197,10 +197,12 @@ function setup_ingress(){
 
 function get_mongo_url(){
     namespace=$1
-    export NODE_NAME=$(kubectl -n ${namespace} get pod  -l "component=database" -o=jsonpath='{.items[*].spec.nodeName}')
-    export NODE_IP=$(kubectl -n ${namespace} get nodes $NODE_NAME -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}')
-    export NODE_PORT=$(kubectl -n ${namespace} get -o jsonpath="{.spec.ports[0].nodePort}" services mongo-service)
-    export AccessURL="$NODE_IP:$NODE_PORT"
+    kubectl patch svc mongo-service -p '{"spec": {"type": "LoadBalancer"}}' -n ${namespace}
+    export loadBalancer=$(kubectl get services mongo-service -n ${namespace} -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+    wait_for_pods ${namespace} 360
+    wait_for_loadbalancer mongo-service ${namespace}
+    export loadBalancerIP=$(kubectl get services mongo-service -n ${namespace} -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+    export AccessURL="$loadBalancerIP:27017"
     echo "MONGO_URL=$AccessURL" >> $GITHUB_ENV
 
 }
