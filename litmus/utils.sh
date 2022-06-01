@@ -200,7 +200,7 @@ function get_mongo_url(){
     export NODE_NAME=$(kubectl -n ${namespace} get pod  -l "component=database" -o=jsonpath='{.items[*].spec.nodeName}')
     export NODE_IP=$(kubectl -n ${namespace} get nodes $NODE_NAME -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}')
     export NODE_PORT=$(kubectl -n ${namespace} get -o jsonpath="{.spec.ports[0].nodePort}" services mongo-service)
-    export AccessURL="http://$NODE_IP:$NODE_PORT"
+    export AccessURL="$NODE_IP:$NODE_PORT"
     echo "MONGO_URL=$AccessURL" >> $GITHUB_ENV
 
 }
