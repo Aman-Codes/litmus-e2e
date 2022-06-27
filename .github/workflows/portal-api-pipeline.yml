@@ -49,14 +49,6 @@ jobs:
           INSTALLATION_MODE: "CS-MODE"
           DEPLOY_SELF_AGENT: "false"
 
-      - name: Installing LitmusCTL on Agent Cluster
-        run: |
-          curl -O https://litmusctl-production-bucket.s3.amazonaws.com/litmusctl-linux-amd64-master.tar.gz
-          tar -zxvf litmusctl-linux-amd64-master.tar.gz
-          chmod +x litmusctl
-          sudo mv litmusctl /usr/local/bin/litmusctl
-          litmusctl version
-
       - name: Running API Tests
         uses: cypress-io/github-action@v2
         if: always()

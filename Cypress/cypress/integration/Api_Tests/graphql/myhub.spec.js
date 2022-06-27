@@ -1,6 +1,5 @@
 /// <reference types="Cypress" />
 
-import * as user from "../../../fixtures/Users.json";
 import {
   ADD_MY_HUB,
   DELETE_HUB,
@@ -17,36 +16,32 @@ import {
 } from "../../../fixtures/graphql/queries";
 import * as myhubInput from "../../../fixtures/myhubInput.json";
 import { permission_denied } from "../../../fixtures/errorCodes";
+import endpoints from "../../../fixtures/endpoints";
 
-let project1Id, project2Id, hubId;
-before("Clear database", () => {
-  cy.task("clearDB")
-    .then(() => {
-      return cy.requestLogin(user.AdminName, user.AdminPassword);
-    })
-    .then(() => {
-      return cy.getStarted("litmus");
-    })
-    .then(() => {
-      return cy.task("getAdminProject");
-    })
-    .then((res) => {
-      return cy.securityCheckSetup(res._id, res.name);
-    })
-    .then((createdSetupVariable) => {
-      project1Id = createdSetupVariable.project1Id;
-      project2Id = createdSetupVariable.project2Id;
-    })
-    .then(() => {
-      cy.requestLogin(user.AdminName, user.AdminPassword);
-    });
+let adminProjectId,
+  project2Id,
+  adminAccessToken,
+  user1AccessToken,
+  user2AccessToken,
+  user3AccessToken,
+  hubId;
+
+before("Initial RBAC Setup", () => {
+  cy.initialRBACSetup(false).then((data) => {
+    adminProjectId = data.adminProjectId;
+    project2Id = data.project2Id;
+    adminAccessToken = data.adminAccessToken;
+    user1AccessToken = data.user1AccessToken;
+    user2AccessToken = data.user2AccessToken;
+    user3AccessToken = data.user3AccessToken;
+  });
 });
 
 describe("Testing myHub api", () => {
   it("Adding a new MyHub to a project with no access [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "addChaosHub",
         variables: {
@@ -56,6 +51,9 @@ describe("Testing myHub api", () => {
           },
         },
         query: ADD_MY_HUB,
+      },
+      headers: {
+        authorization: adminAccessToken,
       },
       failOnStatusCode: false,
     }).then((res) => {
@@ -66,13 +64,16 @@ describe("Testing myHub api", () => {
   it("Fetching status of the MyHub of a project with no access [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "listHubStatus",
         variables: {
           projectID: project2Id,
         },
         query: GET_HUB_STATUS,
+      },
+      headers: {
+        authorization: adminAccessToken,
       },
       failOnStatusCode: false,
     }).then((res) => {
@@ -81,11 +82,9 @@ describe("Testing myHub api", () => {
   });
 
   it("Adding a new MyHub to a project with viewer access [ Should not be possible ]", () => {
-    cy.logout();
-    cy.requestLogin(user.user2.username, user.user2.password);
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "addChaosHub",
         variables: {
@@ -96,6 +95,9 @@ describe("Testing myHub api", () => {
         },
         query: ADD_MY_HUB,
       },
+      headers: {
+        authorization: user2AccessToken,
+      },
       failOnStatusCode: false,
     }).then((res) => {
       cy.validateErrorMessage(res, permission_denied);
@@ -105,13 +107,16 @@ describe("Testing myHub api", () => {
   it("Fetching status of the MyHub of a project with viewer access", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "listHubStatus",
         variables: {
           projectID: project2Id,
         },
         query: GET_HUB_STATUS,
+      },
+      headers: {
+        authorization: user2AccessToken,
       },
     }).then((res) => {
       expect(res.status).to.eq(200);
@@ -120,21 +125,23 @@ describe("Testing myHub api", () => {
   });
 
   it("Adding a new MyHub to a project with editor access", () => {
-    cy.logout();
-    cy.requestLogin(user.user1.username, user.user1.password);
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "addChaosHub",
         variables: {
           request: {
             ...myhubInput.default,
-            projectID: project1Id,
+            projectID: adminProjectId,
           },
         },
         query: ADD_MY_HUB,
       },
+      headers: {
+        authorization: user1AccessToken,
+      },
+      timeout: 600000,
     }).then((res) => {
       expect(res.status).to.eq(200);
       expect(res.body).to.have.nested.property("data.addChaosHub.id");
@@ -145,13 +152,16 @@ describe("Testing myHub api", () => {
   it("Fetching status of the MyHub of a project with editor access", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "listHubStatus",
         variables: {
-          projectID: project1Id,
+          projectID: adminProjectId,
         },
         query: GET_HUB_STATUS,
+      },
+      headers: {
+        authorization: user1AccessToken,
       },
     }).then((res) => {
       expect(res.status).to.eq(200);
@@ -162,14 +172,17 @@ describe("Testing myHub api", () => {
   it("Fetching all the charts from hub of a project with editor access", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "listCharts",
         variables: {
           hubName: "my-chaos-hub",
-          projectID: project1Id,
+          projectID: adminProjectId,
         },
         query: GET_CHARTS_DATA,
+      },
+      headers: {
+        authorization: user1AccessToken,
       },
     }).then((res) => {
       expect(res.status).to.eq(200);
@@ -181,18 +194,21 @@ describe("Testing myHub api", () => {
   it("Fetching the experiment details from a selected chart of a project with editor access", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "getHubExperiment",
         variables: {
           request: {
-            projectID: project1Id,
+            projectID: adminProjectId,
             chartName: "generic",
             experimentName: "pod-delete",
             hubName: "my-chaos-hub",
           },
         },
         query: GET_EXPERIMENT_DATA,
+      },
+      headers: {
+        authorization: user1AccessToken,
       },
     }).then((res) => {
       expect(res.status).to.eq(200);
@@ -206,12 +222,12 @@ describe("Testing myHub api", () => {
   it("Fetching the experiment manifest from the hub of a project with editor access", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "getYAMLData",
         variables: {
           request: {
-            projectID: project1Id,
+            projectID: adminProjectId,
             chartName: "generic",
             experimentName: "pod-delete",
             hubName: "my-chaos-hub",
@@ -219,6 +235,9 @@ describe("Testing myHub api", () => {
           },
         },
         query: GET_EXPERIMENT_YAML,
+      },
+      headers: {
+        authorization: user1AccessToken,
       },
     }).then((res) => {
       expect(res.status).to.eq(200);
@@ -229,15 +248,19 @@ describe("Testing myHub api", () => {
   it("Fetching all the pre-defined workflows of a project with editor access", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "listPredefinedWorkflows",
         variables: {
           hubName: "my-chaos-hub",
-          projectID: project1Id,
+          projectID: adminProjectId,
         },
         query: GET_PREDEFINED_WORKFLOW_LIST,
       },
+      headers: {
+        authorization: user1AccessToken,
+      },
+      timeout: 600000,
     }).then((res) => {
       expect(res.status).to.eq(200);
       expect(res.body).to.have.nested.property(
@@ -249,12 +272,12 @@ describe("Testing myHub api", () => {
   it("Fetching the experiment manifest from a hub of a project with editor access", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "getPredefinedExperimentYAML",
         variables: {
           request: {
-            projectID: project1Id,
+            projectID: adminProjectId,
             chartName: "predefined",
             experimentName: "podtato-head",
             hubName: "my-chaos-hub",
@@ -262,6 +285,9 @@ describe("Testing myHub api", () => {
           },
         },
         query: GET_PREDEFINED_EXPERIMENT_YAML,
+      },
+      headers: {
+        authorization: user1AccessToken,
       },
     }).then((res) => {
       expect(res.status).to.eq(200);
@@ -274,7 +300,7 @@ describe("Testing myHub api", () => {
   it("Updating the hub configuration of a project with editor access", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "updateChaosHub",
         variables: {
@@ -282,10 +308,13 @@ describe("Testing myHub api", () => {
             ...myhubInput.default,
             id: hubId,
             hubName: "my-chaos-hub-1",
-            projectID: project1Id,
+            projectID: adminProjectId,
           },
         },
         query: UPDATE_MY_HUB,
+      },
+      headers: {
+        authorization: user1AccessToken,
       },
     }).then((res) => {
       expect(res.status).to.eq(200);
@@ -297,14 +326,17 @@ describe("Testing myHub api", () => {
   it("Syncing the hub of a project with editor access", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "syncChaosHub",
         variables: {
           id: hubId,
-          projectID: project1Id,
+          projectID: adminProjectId,
         },
         query: SYNC_REPO,
+      },
+      headers: {
+        authorization: user1AccessToken,
       },
     }).then((res) => {
       expect(res.status).to.eq(200);
@@ -313,11 +345,9 @@ describe("Testing myHub api", () => {
   });
 
   it("Updating the hub configuration of a project with no access [ Should not be possible ]", () => {
-    cy.logout();
-    cy.requestLogin(user.user2.username, user.user2.password);
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "updateChaosHub",
         variables: {
@@ -325,10 +355,13 @@ describe("Testing myHub api", () => {
             ...myhubInput.default,
             id: hubId,
             hubName: "my-chaos-hub",
-            projectID: project1Id,
+            projectID: adminProjectId,
           },
         },
         query: UPDATE_MY_HUB,
+      },
+      headers: {
+        authorization: user2AccessToken,
       },
       failOnStatusCode: false,
     }).then((res) => {
@@ -339,14 +372,17 @@ describe("Testing myHub api", () => {
   it("Fetching all the charts from hub of a project with no access [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "listCharts",
         variables: {
           hubName: "my-chaos-hub-1",
-          projectID: project1Id,
+          projectID: adminProjectId,
         },
         query: GET_CHARTS_DATA,
+      },
+      headers: {
+        authorization: user2AccessToken,
       },
       failOnStatusCode: false,
     }).then((res) => {
@@ -357,12 +393,12 @@ describe("Testing myHub api", () => {
   it("Fetching the experiment details from a selected chart of a project with no access [ Should not be possible ]s", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "getHubExperiment",
         variables: {
           request: {
-            projectID: project1Id,
+            projectID: adminProjectId,
             chartName: "generic",
             experimentName: "pod-delete",
             hubName: "my-chaos-hub-1",
@@ -370,141 +406,164 @@ describe("Testing myHub api", () => {
         },
         query: GET_EXPERIMENT_DATA,
       },
+      headers: {
+        authorization: user2AccessToken,
+      },
       failOnStatusCode: false,
     }).then((res) => {
       cy.validateErrorMessage(res, permission_denied);
     });
   });
 
-  /*   it("Fetching the experiment manifest from the hub of a project with no access [ Should not be possible ]", () => {
+  it("Fetching the experiment manifest from the hub of a project with no access [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + '/query',
-      body: { 
-        "operationName": "getYAMLData",
-        "variables": {
-          "request": {
-            "projectID": project1Id,
-            "chartName": "generic",
-            "experimentName": "pod-delete",
-            "hubName": "my-chaos-hub-1",
-            "fileType": "EXPERIMENT"
-          }
+      url: Cypress.env("apiURL") + endpoints.query(),
+      body: {
+        operationName: "getYAMLData",
+        variables: {
+          request: {
+            projectID: adminProjectId,
+            chartName: "generic",
+            experimentName: "pod-delete",
+            hubName: "my-chaos-hub-1",
+            fileType: "EXPERIMENT",
+          },
         },
-        "query": GET_EXPERIMENT_YAML
+        query: GET_EXPERIMENT_YAML,
       },
-      failOnStatusCode: false
+      headers: {
+        authorization: user2AccessToken,
+      },
+      failOnStatusCode: false,
     }).then((res) => {
       cy.validateErrorMessage(res, permission_denied);
     });
-  }); */
+  });
 
-  /*   it("Fetching all the pre-defined workflows of a project with no access [ Should not be possible ]", () => {
+  it("Fetching all the pre-defined workflows of a project with no access [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + '/query',
-      body: { 
-        "operationName": "listPredefinedWorkflows",
-        "variables": {
-          "hubName": "my-chaos-hub-1",
-          "projectID": project1Id,
+      url: Cypress.env("apiURL") + endpoints.query(),
+      body: {
+        operationName: "listPredefinedWorkflows",
+        variables: {
+          hubName: "my-chaos-hub-1",
+          projectID: adminProjectId,
         },
-        "query": GET_PREDEFINED_WORKFLOW_LIST
+        query: GET_PREDEFINED_WORKFLOW_LIST,
       },
-      failOnStatusCode: false
+      headers: {
+        authorization: user2AccessToken,
+      },
+      failOnStatusCode: false,
     }).then((res) => {
       cy.validateErrorMessage(res, permission_denied);
     });
-  }); */
+  });
 
-  /*   it("Fetching the pre-defined experiment manifest from a hub of a project with no access [ Should not be possible ]", () => {
+  it("Fetching the pre-defined experiment manifest from a hub of a project with no access [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + '/query',
-      body: { 
-        "operationName": "getPredefinedExperimentYAML",
-        "variables": {
-          "request": {
-            "projectID": project1Id,
-            "chartName": "predefined",
-            "experimentName": "podtato-head",
-            "hubName": "my-chaos-hub-1",
-            "fileType": "WORKFLOW"
-          }
+      url: Cypress.env("apiURL") + endpoints.query(),
+      body: {
+        operationName: "getPredefinedExperimentYAML",
+        variables: {
+          request: {
+            projectID: adminProjectId,
+            chartName: "predefined",
+            experimentName: "podtato-head",
+            hubName: "my-chaos-hub-1",
+            fileType: "WORKFLOW",
+          },
         },
-        "query": GET_PREDEFINED_EXPERIMENT_YAML
+        query: GET_PREDEFINED_EXPERIMENT_YAML,
       },
-      failOnStatusCode: false
+      headers: {
+        authorization: user2AccessToken,
+      },
+      failOnStatusCode: false,
     }).then((res) => {
       cy.validateErrorMessage(res, permission_denied);
     });
-  }); */
+  });
 
-  /*   it("Syncing the hub of a project with no access [ Should not be possible ]", () => {
+  it("Syncing the hub of a project with no access [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + '/query',
-      body: { 
-        "operationName": "syncChaosHub",
-        "variables": {
-          id: hubId
+      url: Cypress.env("apiURL") + endpoints.query(),
+      body: {
+        operationName: "syncChaosHub",
+        variables: {
+          id: hubId,
+          projectID: adminProjectId,
         },
-        "query": SYNC_REPO
+        query: SYNC_REPO,
       },
-      failOnStatusCode: false
+      headers: {
+        authorization: user2AccessToken,
+      },
+      failOnStatusCode: false,
     }).then((res) => {
       cy.validateErrorMessage(res, permission_denied);
     });
-  }); */
+  });
 
-  /*   it("Deleting the hub of a project with no access [ Should not be possible ]", () => {
+  it("Deleting the hub of a project with no access [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + '/query',
-      body: { 
-        "operationName": "deleteChaosHub",
-        "variables": {
-          "hubID": hubId
-        },
-        "query": DELETE_HUB
-      },
-      failOnStatusCode: false
-    }).then((res) => {
-      cy.validateErrorMessage(res, permission_denied);
-    });
-  }); */
-
-  /*   it("Deleting the hub of a project with viewer access [ Should not be possible ]", () => {
-    cy.logout();
-    cy.requestLogin(user.user3.username, user.user3.password);
-    cy.request({
-      method: "POST",
-      url: Cypress.env("apiURL") + '/query',
-      body: { 
-        "operationName": "deleteChaosHub",
-        "variables": {
-          "hubID": hubId
-        },
-        "query": DELETE_HUB
-      },
-    }).then((res) => {
-      cy.validateErrorMessage(res, permission_denied);
-    });
-  }); */
-
-  it("Deleting the hub of a project with editor access", () => {
-    cy.logout();
-    cy.requestLogin(user.user1.username, user.user1.password);
-    cy.request({
-      method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "deleteChaosHub",
         variables: {
           hubID: hubId,
-          projectID: project1Id,
+          projectID: adminProjectId,
         },
         query: DELETE_HUB,
+      },
+      headers: {
+        authorization: user2AccessToken,
+      },
+      failOnStatusCode: false,
+    }).then((res) => {
+      cy.validateErrorMessage(res, permission_denied);
+    });
+  });
+
+  it("Deleting the hub of a project with viewer access [ Should not be possible ]", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("apiURL") + endpoints.query(),
+      body: {
+        operationName: "deleteChaosHub",
+        variables: {
+          hubID: hubId,
+          projectID: adminProjectId,
+        },
+        query: DELETE_HUB,
+      },
+      headers: {
+        authorization: user3AccessToken,
+      },
+    }).then((res) => {
+      cy.validateErrorMessage(res, permission_denied);
+    });
+  });
+
+  it("Deleting the hub of a project with editor access", () => {
+    cy.request({
+      method: "POST",
+      url: Cypress.env("apiURL") + endpoints.query(),
+      body: {
+        operationName: "deleteChaosHub",
+        variables: {
+          hubID: hubId,
+          projectID: adminProjectId,
+        },
+        query: DELETE_HUB,
+      },
+      headers: {
+        authorization: user1AccessToken,
       },
     }).then((res) => {
       expect(res.status).to.eq(200);

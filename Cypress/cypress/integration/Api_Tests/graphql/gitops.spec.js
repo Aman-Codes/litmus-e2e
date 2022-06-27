@@ -1,6 +1,5 @@
 /// <reference types="Cypress" />
 
-import * as user from "../../../fixtures/Users.json";
 import * as gitopsInput from "../../../fixtures/gitopsInput.json";
 import {
   ENABLE_GITOPS,
@@ -8,44 +7,37 @@ import {
   DISABLE_GITOPS,
 } from "../../../fixtures/graphql/mutations";
 import { GET_GITOPS_DATA } from "../../../fixtures/graphql/queries";
+import endpoints from "../../../fixtures/endpoints";
 
-let project1Id, project2Id;
-before("Clear database", () => {
-  cy.task("clearDB")
-    .then(() => {
-      return cy.requestLogin(user.AdminName, user.AdminPassword);
-    })
-    .then(() => {
-      return cy.getStarted("litmus");
-    })
-    .then(() => {
-      return cy.task("getAdminProject");
-    })
-    .then((res) => {
-      return cy.securityCheckSetup(res._id, res.name);
-    })
-    .then((createdSetupVariable) => {
-      project1Id = createdSetupVariable.project1Id;
-      project2Id = createdSetupVariable.project2Id;
-      cy.requestLogin(user.user3.username, user.user3.password);
-    });
+let adminProjectId, adminAccessToken, user2AccessToken, user3AccessToken;
+
+before("Initial RBAC Setup", () => {
+  cy.initialRBACSetup(false).then((data) => {
+    adminProjectId = data.adminProjectId;
+    adminAccessToken = data.adminAccessToken;
+    user2AccessToken = data.user2AccessToken;
+    user3AccessToken = data.user3AccessToken;
+  });
 });
 
 describe("Testing GitOps api", () => {
   it("Enabling Gitops by user with viewer access", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "enableGitOps",
         variables: {
           config: {
             ...gitopsInput.gitops1,
-            projectID: project1Id,
+            projectID: adminProjectId,
             token: Cypress.env("githubToken"),
           },
         },
         query: ENABLE_GITOPS,
+      },
+      headers: {
+        authorization: user3AccessToken,
       },
       timeout: 600000,
       failOnStatusCode: false,
@@ -55,21 +47,22 @@ describe("Testing GitOps api", () => {
   });
 
   it("Enabling Gitops by user with no access", () => {
-    cy.logout();
-    cy.requestLogin(user.user2.username, user.user2.password);
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "enableGitOps",
         variables: {
           config: {
             ...gitopsInput.gitops1,
-            projectID: project1Id,
+            projectID: adminProjectId,
             token: Cypress.env("githubToken"),
           },
         },
         query: ENABLE_GITOPS,
+      },
+      headers: {
+        authorization: user2AccessToken,
       },
       timeout: 600000,
       failOnStatusCode: false,
@@ -79,21 +72,22 @@ describe("Testing GitOps api", () => {
   });
 
   it("Enabling Gitops by user with admin access", () => {
-    cy.logout();
-    cy.requestLogin(user.AdminName, user.AdminPassword);
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "enableGitOps",
         variables: {
           config: {
             ...gitopsInput.gitops1,
-            projectID: project1Id,
+            projectID: adminProjectId,
             token: Cypress.env("githubToken"),
           },
         },
         query: ENABLE_GITOPS,
+      },
+      headers: {
+        authorization: adminAccessToken,
       },
       timeout: 600000,
     }).then((res) => {
@@ -104,17 +98,18 @@ describe("Testing GitOps api", () => {
   });
 
   it("Get GitOps Details by user with viewer access", () => {
-    cy.logout();
-    cy.requestLogin(user.user3.username, user.user3.password);
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "getGitOpsDetails",
         variables: {
-          projectID: project1Id,
+          projectID: adminProjectId,
         },
         query: GET_GITOPS_DATA,
+      },
+      headers: {
+        authorization: user3AccessToken,
       },
       failOnStatusCode: false,
     }).then((res) => {
@@ -123,17 +118,18 @@ describe("Testing GitOps api", () => {
   });
 
   it("Get GitOps Details by user with no access", () => {
-    cy.logout();
-    cy.requestLogin(user.user2.username, user.user2.password);
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "getGitOpsDetails",
         variables: {
-          projectID: project1Id,
+          projectID: adminProjectId,
         },
         query: GET_GITOPS_DATA,
+      },
+      headers: {
+        authorization: user2AccessToken,
       },
       failOnStatusCode: false,
     }).then((res) => {
@@ -142,17 +138,18 @@ describe("Testing GitOps api", () => {
   });
 
   it("Get GitOps Details by user with admin access", () => {
-    cy.logout();
-    cy.requestLogin(user.AdminName, user.AdminPassword);
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "getGitOpsDetails",
         variables: {
-          projectID: project1Id,
+          projectID: adminProjectId,
         },
         query: GET_GITOPS_DATA,
+      },
+      headers: {
+        authorization: adminAccessToken,
       },
     }).then((res) => {
       expect(res.status).to.eq(200);
@@ -170,21 +167,22 @@ describe("Testing GitOps api", () => {
   });
 
   it("Update GitOps by user with viewer access", () => {
-    cy.logout();
-    cy.requestLogin(user.user3.username, user.user3.password);
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "updateGitOps",
         variables: {
           config: {
             ...gitopsInput.gitops2,
-            projectID: project1Id,
+            projectID: adminProjectId,
             token: Cypress.env("githubToken"),
           },
         },
         query: UPDATE_GITOPS,
+      },
+      headers: {
+        authorization: user3AccessToken,
       },
       failOnStatusCode: false,
     }).then((res) => {
@@ -193,21 +191,22 @@ describe("Testing GitOps api", () => {
   });
 
   it("Update GitOps by user with no access", () => {
-    cy.logout();
-    cy.requestLogin(user.user2.username, user.user2.password);
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "updateGitOps",
         variables: {
           config: {
             ...gitopsInput.gitops2,
-            projectID: project1Id,
+            projectID: adminProjectId,
             token: Cypress.env("githubToken"),
           },
         },
         query: UPDATE_GITOPS,
+      },
+      headers: {
+        authorization: user2AccessToken,
       },
       failOnStatusCode: false,
     }).then((res) => {
@@ -216,19 +215,20 @@ describe("Testing GitOps api", () => {
   });
 
   it("Update GitOps by user with admin access", () => {
-    cy.logout();
-    cy.requestLogin(user.AdminName, user.AdminPassword);
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "updateGitOps",
         variables: {
           config: {
             ...gitopsInput.gitops2,
-            projectID: project1Id,
+            projectID: adminProjectId,
             token: Cypress.env("githubToken"),
           },
+        },
+        headers: {
+          authorization: adminAccessToken,
         },
         query: UPDATE_GITOPS,
       },
@@ -239,13 +239,16 @@ describe("Testing GitOps api", () => {
         expect(res.body.data.updateGitOps).to.eq(true);
         return cy.request({
           method: "POST",
-          url: Cypress.env("apiURL") + "/query",
+          url: Cypress.env("apiURL") + endpoints.query(),
           body: {
             operationName: "getGitOpsDetails",
             variables: {
-              projectID: project1Id,
+              projectID: adminProjectId,
             },
             query: GET_GITOPS_DATA,
+          },
+          headers: {
+            authorization: adminAccessToken,
           },
         });
       })
@@ -271,17 +274,18 @@ describe("Testing GitOps api", () => {
   });
 
   it("Disable GitOps by user with viewer access", () => {
-    cy.logout();
-    cy.requestLogin(user.user3.username, user.user3.password);
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "disableGitOps",
         variables: {
-          projectID: project1Id,
+          projectID: adminProjectId,
         },
         query: DISABLE_GITOPS,
+      },
+      headers: {
+        authorization: user3AccessToken,
       },
       failOnStatusCode: false,
     }).then((res) => {
@@ -290,17 +294,18 @@ describe("Testing GitOps api", () => {
   });
 
   it("Disable GitOps by user with no access", () => {
-    cy.logout();
-    cy.requestLogin(user.user2.username, user.user2.password);
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "disableGitOps",
         variables: {
-          projectID: project1Id,
+          projectID: adminProjectId,
         },
         query: DISABLE_GITOPS,
+      },
+      headers: {
+        authorization: user2AccessToken,
       },
       failOnStatusCode: false,
     }).then((res) => {
@@ -309,17 +314,18 @@ describe("Testing GitOps api", () => {
   });
 
   it("Disable GitOps by user with admin access", () => {
-    cy.logout();
-    cy.requestLogin(user.AdminName, user.AdminPassword);
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "disableGitOps",
         variables: {
-          projectID: project1Id,
+          projectID: adminProjectId,
         },
         query: DISABLE_GITOPS,
+      },
+      headers: {
+        authorization: adminAccessToken,
       },
     })
       .then((res) => {
@@ -328,13 +334,16 @@ describe("Testing GitOps api", () => {
         expect(res.body.data.disableGitOps).to.eq(true);
         return cy.request({
           method: "POST",
-          url: Cypress.env("apiURL") + "/query",
+          url: Cypress.env("apiURL") + endpoints.query(),
           body: {
             operationName: "getGitOpsDetails",
             variables: {
-              projectID: project1Id,
+              projectID: adminProjectId,
             },
             query: GET_GITOPS_DATA,
+          },
+          headers: {
+            authorization: adminAccessToken,
           },
         });
       })

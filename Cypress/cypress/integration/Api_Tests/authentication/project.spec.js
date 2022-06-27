@@ -2,8 +2,13 @@
 
 import * as user from "../../../fixtures/Users.json";
 import * as myhubInput from "../../../fixtures/myhubInput.json";
-import { endpoints } from "../../../fixtures/authenticationEndpoints";
-import { unauthorized, permission_denied } from "../../../fixtures/errorCodes";
+import endpoints from "../../../fixtures/endpoints";
+import {
+  unauthorized,
+  permission_denied,
+  invalid_role,
+  invalid_request,
+} from "../../../fixtures/errorCodes";
 import { ADD_MY_HUB } from "../../../fixtures/graphql/mutations";
 
 const Project1Name = "Project1",
@@ -23,83 +28,40 @@ let user1Id,
 before("create 3 test users", () => {
   cy.task("clearDB")
     .then(() => {
-      return cy.request({
-        method: "POST",
-        url: Cypress.env("authURL") + endpoints.login(),
-        body: {
-          username: user.AdminName,
-          password: user.AdminPassword,
-        },
-      });
+      cy.clearCookie("litmus-cc-token");
+      indexedDB.deleteDatabase("localforage");
+    })
+    .then(() => {
+      return cy.getAccessToken(user.AdminName, user.AdminPassword);
+    })
+    .then((token) => {
+      adminAccessToken = token;
+      return cy.createProject("admin's project", adminAccessToken);
+    })
+    .then(() => {
+      let usersData = [user.user1, user.user2, user.user3];
+      return cy.createTestUsers(usersData, adminAccessToken);
     })
     .then((res) => {
-      adminAccessToken = res.body.access_token;
-      return cy.request({
-        method: "POST",
-        url: Cypress.env("authURL") + "/create",
-        headers: {
-          authorization: `Bearer ${adminAccessToken}`,
-        },
-        body: { ...user.user1 },
-      });
+      user1Id = res[0];
+      user2Id = res[1];
+      user3Id = res[2];
+      return cy.getAccessToken(user.AdminName, user.AdminPassword);
     })
     .then((res) => {
-      user1Id = res.body._id;
-      return cy.request({
-        method: "POST",
-        url: Cypress.env("authURL") + "/create",
-        headers: {
-          authorization: `Bearer ${adminAccessToken}`,
-        },
-        body: { ...user.user2 },
-      });
+      adminAccessToken = res;
+      return cy.getAccessToken(user.user1.username, user.user1.password);
     })
     .then((res) => {
-      user2Id = res.body._id;
-      return cy.request({
-        method: "POST",
-        url: Cypress.env("authURL") + "/create",
-        headers: {
-          authorization: `Bearer ${adminAccessToken}`,
-        },
-        body: { ...user.user3 },
-      });
+      user1AccessToken = res;
+      return cy.getAccessToken(user.user2.username, user.user2.password);
     })
     .then((res) => {
-      user3Id = res.body._id;
-      return cy.request({
-        method: "POST",
-        url: Cypress.env("authURL") + endpoints.login(),
-        body: {
-          username: user.user1.username,
-          password: user.user1.password,
-        },
-      });
+      user2AccessToken = res;
+      return cy.getAccessToken(user.user3.username, user.user3.password);
     })
     .then((res) => {
-      user1AccessToken = res.body.access_token;
-      return cy.request({
-        method: "POST",
-        url: Cypress.env("authURL") + endpoints.login(),
-        body: {
-          username: user.user2.username,
-          password: user.user2.password,
-        },
-      });
-    })
-    .then((res) => {
-      user2AccessToken = res.body.access_token;
-      return cy.request({
-        method: "POST",
-        url: Cypress.env("authURL") + endpoints.login(),
-        body: {
-          username: user.user3.username,
-          password: user.user3.password,
-        },
-      });
-    })
-    .then((res) => {
-      user3AccessToken = res.body.access_token;
+      user3AccessToken = res;
     });
 });
 
@@ -123,7 +85,7 @@ describe("Testing post request to createProject api", () => {
     });
   });
 
-  /* it("Testing api without project name [ Should not be possible ]", () => {
+  it("Testing api without project name [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
       url: Cypress.env("authURL") + endpoints.createProject(),
@@ -138,7 +100,7 @@ describe("Testing post request to createProject api", () => {
       expect(res.body).to.have.property("error");
       expect(res.body).to.have.property("error_description");
     });
-  }); */
+  });
 
   it("Testing api from admin account", () => {
     cy.request({
@@ -312,7 +274,7 @@ describe("Testing get request to getProjectById api", () => {
     });
   });
 
-  /* it("Testing api from non-admin account with no project access [ Should not be possible ]", () => {
+  it("Testing api from non-admin account with no project access [ Should not be possible ]", () => {
     cy.request({
       method: "GET",
       url: Cypress.env("authURL") + endpoints.getProjectById(Project1Id),
@@ -325,7 +287,7 @@ describe("Testing get request to getProjectById api", () => {
       expect(res.body).to.have.property("error_description");
       expect(res.body.error).to.eq(unauthorized);
     });
-  }); */
+  });
 });
 
 describe("Testing post request to sendInvitation api", () => {
@@ -383,7 +345,7 @@ describe("Testing post request to sendInvitation api", () => {
     });
   });
 
-  /* it("Testing api without role [ Should not be possible ]", () => {
+  it("Testing api without role [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
       url: Cypress.env("authURL") + endpoints.sendInvitation(),
@@ -398,9 +360,9 @@ describe("Testing post request to sendInvitation api", () => {
     }).then((res) => {
       expect(res.body).to.have.property("error");
       expect(res.body).to.have.property("error_description");
-      expect(res.body.error).to.eq(invalid_request);
+      expect(res.body.error).to.eq(invalid_role);
     });
-  }); */
+  });
 
   it("Sending invitation of project2 to user2 [ Should not be possible ]", () => {
     cy.request({
@@ -739,7 +701,7 @@ describe("Testing get request to getUserWithProject api", () => {
     });
   });
 
-  /*it("Testing api by non-admin user [ Should not be possible ]", () => {
+  it("Testing api by non-admin user [ Should not be possible ]", () => {
     cy.request({
       method: "GET",
       url:
@@ -753,9 +715,9 @@ describe("Testing get request to getUserWithProject api", () => {
       expect(res.body).to.have.property("error");
       expect(res.body).to.have.property("error_description");
     });
-  });*/
+  });
 
-  /*it("Testing api to get self project information", () => {
+  it("Testing api to get self project information", () => {
     cy.request({
       method: "GET",
       url:
@@ -766,6 +728,7 @@ describe("Testing get request to getUserWithProject api", () => {
       },
       failOnStatusCode: false,
     }).then((res) => {
+      expect(res.status).to.eq(200);
       expect(res.body).to.have.property("data");
       ["CreatedAt", "Email", "ID", "Name", "Projects", "Username"].forEach(
         (property) => {
@@ -775,17 +738,21 @@ describe("Testing get request to getUserWithProject api", () => {
       expect(res.body.data.Projects).to.be.an("array");
       res.body.data.Projects.forEach((project) => {
         ["ID", "CreatedAt", "Members", "Name", "State", "UpdatedAt"].forEach(
-          (property) => {
-            expect(project).to.have.property(property);
+          (projectProperty) => {
+            expect(project).to.have.property(projectProperty);
           }
         );
         expect(project.Members).to.be.an("array");
-        ["Invitation", "JoinedAt", "Role", "UserID"].forEach((property) => {
-          expect(project.Members).to.have.property(property);
+        project.Members.forEach((member) => {
+          ["Invitation", "JoinedAt", "Role", "UserID"].forEach(
+            (memberProperty) => {
+              expect(member).to.have.property(memberProperty);
+            }
+          );
         });
       });
     });
-  });*/
+  });
 
   it("Testing api by admin user", () => {
     cy.request({
@@ -1031,7 +998,7 @@ describe("Testing post request to removeInvitation api", () => {
     });
   });
 
-  /*it("Testing api without user_id [ Should not be possible ]", () => {
+  it("Testing api without user_id [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
       url: Cypress.env("authURL") + endpoints.removeInvitation(),
@@ -1045,9 +1012,9 @@ describe("Testing post request to removeInvitation api", () => {
     }).then((res) => {
       expect(res.body).to.have.property("error");
       expect(res.body).to.have.property("error_description");
-      expect(res.body.error).to.eq(unauthorized);
+      expect(res.body.error).to.eq(invalid_request);
     });
-  });*/
+  });
 
   it("Remove invitation by a user with no access to that project [ Should not be possible ]", () => {
     cy.request({
@@ -1156,7 +1123,7 @@ describe("Testing post request to leaveProject api", () => {
     });
   });
 
-  /*it("Testing api without user_id [ Should not be possible ]", () => {
+  it("Testing api without user_id [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
       url: Cypress.env("authURL") + endpoints.leaveProject(),
@@ -1172,7 +1139,7 @@ describe("Testing post request to leaveProject api", () => {
       expect(res.body).to.have.property("error_description");
       expect(res.body.error).to.eq(unauthorized);
     });
-  });*/
+  });
 
   it("Test leaving a project which the user was not a part of [ Should not be possible ]", () => {
     cy.request({
@@ -1221,10 +1188,9 @@ describe("Testing post request to leaveProject api", () => {
         expect(res.status).to.eq(200);
         expect(res.body).to.have.property("message");
         expect(res.body.message).to.eq("No projects found");
-        cy.requestLogin(user.user2.username, user.user2.password);
         return cy.request({
           method: "POST",
-          url: Cypress.env("apiURL") + "/query",
+          url: Cypress.env("apiURL") + endpoints.query(),
           body: {
             operationName: "addChaosHub",
             variables: {
@@ -1234,6 +1200,9 @@ describe("Testing post request to leaveProject api", () => {
               },
             },
             query: ADD_MY_HUB,
+          },
+          headers: {
+            authorization: user2AccessToken,
           },
           failOnStatusCode: false,
         });

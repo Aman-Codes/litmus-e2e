@@ -1,62 +1,35 @@
 /// <reference types="Cypress" />
 
-import * as user from "../../../fixtures/Users.json";
 import {
   CREATE_WORKFLOW,
-  // RERUN_CHAOS_WORKFLOW,
+  RERUN_CHAOS_WORKFLOW,
   UPDATE_SCHEDULE,
-  // DELETE_WORKFLOW,
+  DELETE_WORKFLOW,
   ADD_WORKFLOW_TEMPLATE,
 } from "../../../fixtures/graphql/mutations";
 import {
-  GET_CLUSTER,
   WORKFLOW_DETAILS,
   GET_WORKFLOW_DETAILS,
   GET_MANIFEST_TEMPLATE,
   GET_TEMPLATE_BY_ID,
 } from "../../../fixtures/graphql/queries";
+import endpoints from "../../../fixtures/endpoints";
 
-let project1Id, project2Id, cluster1Id, workflow1Id, template1Id;
+let adminProjectId, adminAccessToken, cluster1Id, workflow1Id, template1Id;
+
 before("Clear database", () => {
-  cy.task("clearDB")
-    .then(() => {
-      return cy.createAgent("a1");
-    })
-    .then(() => {
-      return cy.task("getAdminProject");
-    })
-    .then((res) => {
-      return cy.securityCheckSetup(res._id, res.name);
-    })
-    .then((createdSetupVariable) => {
-      project1Id = createdSetupVariable.project1Id;
-      project2Id = createdSetupVariable.project2Id;
-    })
-    .then(() => {
-      cy.requestLogin(user.AdminName, user.AdminPassword);
-    })
-    .then(() => {
-      cy.request({
-        method: "POST",
-        url: Cypress.env("apiURL") + "/query",
-        body: {
-          operationName: "listClusters",
-          variables: {
-            projectID: project1Id,
-          },
-          query: GET_CLUSTER,
-        },
-      }).then((res) => {
-        cluster1Id = res.body.data.listClusters[0].clusterID;
-      });
-    });
+  cy.initialRBACSetup(true).then((data) => {
+    adminProjectId = data.adminProjectId;
+    adminAccessToken = data.adminAccessToken;
+    cluster1Id = data.cluster1Id;
+  });
 });
 
 describe("Testing chaos workflow api", () => {
   it("Creating chaos workflow with different workflow_name in manifest [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "createChaosWorkFlow",
         variables: {
@@ -73,11 +46,14 @@ describe("Testing chaos workflow api", () => {
                 weightage: 10,
               },
             ],
-            projectID: project1Id,
+            projectID: adminProjectId,
             clusterID: cluster1Id,
           },
         },
         query: CREATE_WORKFLOW,
+      },
+      headers: {
+        authorization: adminAccessToken,
       },
       failOnStatusCode: false,
     }).then((res) => {
@@ -88,7 +64,7 @@ describe("Testing chaos workflow api", () => {
   it("Creating chaos workflow with projectId and clusterId mismatch [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "createChaosWorkFlow",
         variables: {
@@ -105,11 +81,14 @@ describe("Testing chaos workflow api", () => {
                 weightage: 10,
               },
             ],
-            projectID: project2Id,
+            projectID: adminProjectId,
             clusterID: cluster1Id,
           },
         },
         query: CREATE_WORKFLOW,
+      },
+      headers: {
+        authorization: adminAccessToken,
       },
       failOnStatusCode: false,
     }).then((res) => {
@@ -120,7 +99,7 @@ describe("Testing chaos workflow api", () => {
   it("Creating chaos workflow", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "createChaosWorkFlow",
         variables: {
@@ -137,11 +116,14 @@ describe("Testing chaos workflow api", () => {
                 weightage: 10,
               },
             ],
-            projectID: project1Id,
+            projectID: adminProjectId,
             clusterID: cluster1Id,
           },
         },
         query: CREATE_WORKFLOW,
+      },
+      headers: {
+        authorization: adminAccessToken,
       },
     }).then((res) => {
       expect(res.status).to.eq(200);
@@ -152,10 +134,10 @@ describe("Testing chaos workflow api", () => {
     });
   });
 
-  /*it("Creating workflow with existing workflow name [ Should not be possible ]", () => {
+  it("Creating workflow with existing workflow name [ Should not be possible ]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "createChaosWorkFlow",
         variables: {
@@ -172,32 +154,38 @@ describe("Testing chaos workflow api", () => {
                 weightage: 10,
               },
             ],
-            projectID: project1Id,
+            projectID: adminProjectId,
             clusterID: cluster1Id,
           },
         },
         query: CREATE_WORKFLOW,
       },
+      headers: {
+        authorization: adminAccessToken,
+      },
       failOnStatusCode: false,
     }).then((res) => {
       cy.validateErrorMessage(res, "permission_denied");
     });
-  });*/
+  });
 
   it("Fetching all chaos workflow runs", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "listWorkflowRuns",
         variables: {
           request: {
-            projectID: project1Id,
+            projectID: adminProjectId,
             workflowRunIDs: [],
             workflowIDs: [],
           },
         },
         query: WORKFLOW_DETAILS,
+      },
+      headers: {
+        authorization: adminAccessToken,
       },
     }).then((res) => {
       expect(res.status).to.eq(200);
@@ -213,15 +201,18 @@ describe("Testing chaos workflow api", () => {
   it("Fetching all chaos workflows", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "listWorkflows",
         variables: {
           request: {
-            projectID: project1Id,
+            projectID: adminProjectId,
           },
         },
         query: GET_WORKFLOW_DETAILS,
+      },
+      headers: {
+        authorization: adminAccessToken,
       },
     }).then((res) => {
       expect(res.status).to.eq(200);
@@ -232,28 +223,31 @@ describe("Testing chaos workflow api", () => {
     });
   });
 
-  /*it("Rerun a chaos workflow", () => {
+  it("Rerun a chaos workflow", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "reRunChaosWorkFlow",
         variables: {
           workflowID: workflow1Id,
-          projectID: project1Id,
+          projectID: adminProjectId,
         },
         query: RERUN_CHAOS_WORKFLOW,
+      },
+      headers: {
+        authorization: adminAccessToken,
       },
     }).then((res) => {
       expect(res.status).to.eq(200);
       expect(res.body).to.have.nested.property("data.reRunChaosWorkFlow");
     });
-  });*/
+  });
 
-  /*it("Updating chaos workflow without workflow_id [Should not be possible]", () => {
+  it("Updating chaos workflow without workflow_id [Should not be possible]", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "updateChaosWorkflow",
         variables: {
@@ -270,22 +264,25 @@ describe("Testing chaos workflow api", () => {
                 weightage: 10,
               },
             ],
-            projectID: project1Id,
+            projectID: adminProjectId,
             clusterID: cluster1Id,
           },
         },
         query: UPDATE_SCHEDULE,
       },
+      headers: {
+        authorization: adminAccessToken,
+      },
       failOnStatusCode: false,
     }).then((res) => {
       cy.validateErrorMessage(res, "permission_denied");
     });
-  });*/
+  });
 
   it("Updating chaos workflow", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "updateChaosWorkflow",
         variables: {
@@ -303,11 +300,14 @@ describe("Testing chaos workflow api", () => {
                 weightage: 10,
               },
             ],
-            projectID: project1Id,
+            projectID: adminProjectId,
             clusterID: cluster1Id,
           },
         },
         query: UPDATE_SCHEDULE,
+      },
+      headers: {
+        authorization: adminAccessToken,
       },
     }).then((res) => {
       expect(res.status).to.eq(200);
@@ -318,29 +318,32 @@ describe("Testing chaos workflow api", () => {
     });
   });
 
-  /*it("Deleting chaos workflow", () => {
+  it("Deleting chaos workflow", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "deleteChaosWorkflow",
         variables: {
-          projectID: project1Id,
+          projectID: adminProjectId,
           workflowID: workflow1Id,
         },
         query: DELETE_WORKFLOW,
+      },
+      headers: {
+        authorization: adminAccessToken,
       },
     }).then((res) => {
       expect(res.status).to.eq(200);
       expect(res.body).to.have.nested.property("data.deleteChaosWorkflow");
       expect(res.body.data.deleteChaosWorkflow).to.eq(true);
     });
-  });*/
+  });
 
   it("Test to save a scheduled workflow as a template", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "createWorkflowTemplate",
         variables: {
@@ -349,11 +352,14 @@ describe("Testing chaos workflow api", () => {
               'kind: CronWorkflow\napiVersion: argoproj.io/v1alpha1\nmetadata:\n  name: podtato-head-1646030868\n  namespace: litmus\n  creationTimestamp: null\n  labels:\n    subject: podtato-head_litmus\n    workflows.argoproj.io/controller-instanceid: 53fdf999-8650-4e91-8231-3e2b503d7c9b\nspec:\n  workflowSpec:\n    templates:\n      - name: argowf-chaos\n        inputs: {}\n        outputs: {}\n        metadata: {}\n        steps:\n          - - name: install-application\n              template: install-application\n              arguments: {}\n          - - name: install-chaos-experiments\n              template: install-chaos-experiments\n              arguments: {}\n          - - name: pod-delete\n              template: pod-delete\n              arguments: {}\n          - - name: revert-chaos\n              template: revert-chaos\n              arguments: {}\n            - name: delete-application\n              template: delete-application\n              arguments: {}\n      - name: install-application\n        inputs: {}\n        outputs: {}\n        metadata: {}\n        container:\n          name: ""\n          image: litmuschaos/litmus-app-deployer:2.5.0\n          args:\n            - -namespace={{workflow.parameters.adminModeNamespace}}\n            - -typeName=resilient\n            - -operation=apply\n            - -timeout=400\n            - -app=podtato-head\n            - -scope=namespace\n          resources: {}\n      - name: install-chaos-experiments\n        inputs: {}\n        outputs: {}\n        metadata: {}\n        container:\n          name: ""\n          image: litmuschaos/k8s:2.5.0\n          command:\n            - sh\n            - -c\n          args:\n            - kubectl apply -f\n              https://hub.litmuschaos.io/api/chaos/2.5.0?file=charts/generic/experiments.yaml\n              -n {{workflow.parameters.adminModeNamespace}} ; sleep 30\n          resources: {}\n      - name: pod-delete\n        inputs:\n          artifacts:\n            - name: pod-delete\n              path: /tmp/chaosengine.yaml\n              raw:\n                data: >\n                  apiVersion: litmuschaos.io/v1alpha1\n\n                  kind: ChaosEngine\n\n                  metadata:\n                    namespace: "{{workflow.parameters.adminModeNamespace}}"\n                    labels:\n                      instance_id: 4c4b7707-112c-4809-8749-19e46aaab769\n                      workflow_name: podtato-head-1646030868\n                    generateName: podtato-main-pod-delete-chaos\n                  spec:\n                    appinfo:\n                      appns: "{{workflow.parameters.adminModeNamespace}}"\n                      applabel: name=podtato-main\n                      appkind: deployment\n                    engineState: active\n                    chaosServiceAccount: litmus-admin\n                    jobCleanUpPolicy: retain\n                    components:\n                      runner:\n                        imagePullPolicy: Always\n                    experiments:\n                      - name: pod-delete\n                        spec:\n                          probe:\n                            - name: check-podtato-main-access-url\n                              type: httpProbe\n                              httpProbe/inputs:\n                                url: http://podtato-main.{{workflow.parameters.adminModeNamespace}}.svc.cluster.local:9000\n                                insecureSkipVerify: false\n                                method:\n                                  get:\n                                    criteria: ==\n                                    responseCode: "200"\n                              mode: Continuous\n                              runProperties:\n                                probeTimeout: 1\n                                interval: 1\n                                retry: 1\n                          components:\n                            env:\n                              - name: TOTAL_CHAOS_DURATION\n                                value: "30"\n                              - name: CHAOS_INTERVAL\n                                value: "10"\n                              - name: FORCE\n                                value: "false"\n        outputs: {}\n        metadata:\n          labels:\n            weight: "10"\n        container:\n          name: ""\n          image: litmuschaos/litmus-checker:2.5.0\n          args:\n            - -file=/tmp/chaosengine.yaml\n            - -saveName=/tmp/engine-name\n          resources: {}\n      - name: delete-application\n        inputs: {}\n        outputs: {}\n        metadata: {}\n        container:\n          name: ""\n          image: litmuschaos/litmus-app-deployer:2.5.0\n          args:\n            - -namespace={{workflow.parameters.adminModeNamespace}}\n            - -typeName=resilient\n            - -operation=delete\n            - -app=podtato-head\n          resources: {}\n      - name: revert-chaos\n        inputs: {}\n        outputs: {}\n        metadata: {}\n        container:\n          name: ""\n          image: litmuschaos/k8s:2.5.0\n          command:\n            - sh\n            - -c\n          args:\n            - "kubectl delete chaosengine -l \'instance_id in\n              (4c4b7707-112c-4809-8749-19e46aaab769, )\' -n\n              {{workflow.parameters.adminModeNamespace}} "\n          resources: {}\n    entrypoint: argowf-chaos\n    arguments:\n      parameters:\n        - name: adminModeNamespace\n          value: litmus\n    serviceAccountName: argo-chaos\n    securityContext:\n      runAsUser: 1000\n      runAsNonRoot: true\n  schedule: 20 12 * * 0-6\n  concurrencyPolicy: Forbid\n  startingDeadlineSeconds: 0\n  timezone: Asia/Calcutta\n  workflowMetadata:\n    creationTimestamp: null\n    labels:\n      cluster_id: 53fdf999-8650-4e91-8231-3e2b503d7c9b\n      workflow_id: c85987c1-30d1-4479-b0bb-712ad03638ae\n      workflows.argoproj.io/controller-instanceid: 53fdf999-8650-4e91-8231-3e2b503d7c9b\nstatus:\n  ? active\n  ? lastScheduledTime\n  ? conditions\n',
             templateName: "test-template-1",
             templateDescription: "test template 1",
-            projectID: project1Id,
+            projectID: adminProjectId,
             isCustomWorkflow: false,
           },
         },
         query: ADD_WORKFLOW_TEMPLATE,
+      },
+      headers: {
+        authorization: adminAccessToken,
       },
     }).then((res) => {
       expect(res.status).to.eq(200);
@@ -367,13 +373,16 @@ describe("Testing chaos workflow api", () => {
   it("Test to list all available template manifests", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "listWorkflowManifests",
         variables: {
-          projectID: project1Id,
+          projectID: adminProjectId,
         },
         query: GET_MANIFEST_TEMPLATE,
+      },
+      headers: {
+        authorization: adminAccessToken,
       },
     }).then((res) => {
       expect(res.status).to.eq(200);
@@ -389,14 +398,17 @@ describe("Testing chaos workflow api", () => {
   it("Test to get template manifests by template_id", () => {
     cy.request({
       method: "POST",
-      url: Cypress.env("apiURL") + "/query",
+      url: Cypress.env("apiURL") + endpoints.query(),
       body: {
         operationName: "getWorkflowManifestByID",
         variables: {
-          projectID: project1Id,
+          projectID: adminProjectId,
           templateID: template1Id,
         },
         query: GET_TEMPLATE_BY_ID,
+      },
+      headers: {
+        authorization: adminAccessToken,
       },
     }).then((res) => {
       expect(res.status).to.eq(200);
